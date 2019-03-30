@@ -3,13 +3,14 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
 import re
+import time
 import pytz
 import base64
 import logging
 from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
-from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTFT
+from odoo.tools.safe_eval import safe_eval
 
 _logger = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ try:
     from pytrustnfe.nfse.paulistana import cancelamento_nfe
     from pytrustnfe.certificado import Certificado
 except ImportError:
-    _logger.debug('Cannot import pytrustnfe')
+    _logger.error('Cannot import pytrustnfe', exc_info=True)
 
 
 STATE = {'edit': [('readonly', False)]}
@@ -39,10 +40,10 @@ class InvoiceEletronic(models.Model):
     def _compute_discriminacao(self):
         for item in self:
             descricao = ''
-            for eletronic_item in item.eletronic_item_ids:
-                descricao += eletronic_item.name + '<br/>'
+            for line in item.eletronic_item_ids:
+                descricao += line.name.replace('\n', '<br/>') + '<br/>'
             if item.informacoes_legais:
-                descricao += item.informacoes_legais + '<br/>'
+                descricao += item.informacoes_legais.replace('\n', '<br/>')
             item.discriminacao_servicos = descricao
 
     operation = fields.Selection(
@@ -65,8 +66,7 @@ class InvoiceEletronic(models.Model):
     discriminacao_servicos = fields.Char(compute='_compute_discriminacao')
 
     def issqn_due_date(self):
-        date_emition = datetime.strptime(self.data_emissao, DTFT)
-        next_month = date_emition + relativedelta(months=1)
+        next_month = self.data_emissao + relativedelta(months=1)
         due_date = date(next_month.year, next_month.month, 10)
         if due_date.weekday() >= 5:
             while due_date.weekday() != 0:
@@ -111,8 +111,7 @@ class InvoiceEletronic(models.Model):
         res = super(InvoiceEletronic, self)._prepare_eletronic_invoice_values()
         if self.model == '001':
             tz = pytz.timezone(self.env.user.partner_id.tz) or pytz.utc
-            dt_emissao = datetime.strptime(self.data_emissao, DTFT)
-            dt_emissao = pytz.utc.localize(dt_emissao).astimezone(tz)
+            dt_emissao = pytz.utc.localize(self.data_emissao).astimezone(tz)
             dt_emissao = dt_emissao.strftime('%Y-%m-%d')
 
             partner = self.commercial_partner_id
@@ -152,11 +151,11 @@ class InvoiceEletronic(models.Model):
             descricao = ''
             codigo_servico = ''
             for item in self.eletronic_item_ids:
-                descricao += item.name + '\n'
+                descricao += item.name.replace('\n', '|') + '|'
                 codigo_servico = item.codigo_servico_paulistana
 
             if self.informacoes_legais:
-                descricao += self.informacoes_legais + '\n'
+                descricao += self.informacoes_legais.replace('\n', '|')
 
             rps = {
                 'tomador': tomador,
@@ -164,23 +163,24 @@ class InvoiceEletronic(models.Model):
                 'numero': self.numero,
                 'data_emissao': dt_emissao,
                 'serie': self.serie.code or '',
-                'aliquota_atividade': '0.000',
+                'aliquota_atividade':
+                    "%.3f" % self.eletronic_item_ids[0].issqn_aliquota,
                 'codigo_atividade': re.sub('[^0-9]', '', codigo_servico or ''),
                 'municipio_prestacao': city_prestador.name or '',
-                'valor_pis': str("%.2f" % self.valor_pis),
-                'valor_cofins': str("%.2f" % self.valor_cofins),
-                'valor_csll': str("%.2f" % 0.0),
-                'valor_inss': str("%.2f" % 0.0),
-                'valor_ir': str("%.2f" % 0.0),
-                'aliquota_pis': str("%.2f" % 0.0),
-                'aliquota_cofins': str("%.2f" % 0.0),
-                'aliquota_csll': str("%.2f" % 0.0),
-                'aliquota_inss': str("%.2f" % 0.0),
-                'aliquota_ir': str("%.2f" % 0.0),
-                'valor_servico': str("%.2f" % self.valor_final),
+                'valor_pis': "%.2f" % self.valor_retencao_pis,
+                'valor_cofins': "%.2f" % self.valor_retencao_cofins,
+                'valor_csll': "%.2f" % self.valor_retencao_csll,
+                'valor_inss': "%.2f" % self.valor_retencao_inss,
+                'valor_ir': "%.2f" % self.valor_retencao_irrf,
+                'valor_servico': "%.2f" % self.valor_final,
                 'valor_deducao': '0',
                 'descricao': descricao,
                 'deducoes': [],
+                'valor_carga_tributaria':
+                "%.2f" % self.valor_estimado_tributos,
+                'fonte_carga_tributaria': 'IBPT',
+                'iss_retido':
+                    'true' if self.valor_retencao_issqn > 0.0 else 'false'
             }
 
             valor_servico = self.valor_final
@@ -189,7 +189,7 @@ class InvoiceEletronic(models.Model):
             cnpj_cpf = tomador['cpf_cnpj']
             data_envio = rps['data_emissao']
             inscr = prestador['inscricao_municipal']
-            iss_retido = 'N'
+            iss_retido = 'S' if self.valor_retencao_issqn > 0.0 else 'N'
             tipo_cpfcnpj = tomador['tipo_cpfcnpj']
             codigo_atividade = rps['codigo_atividade']
             tipo_recolhimento = self.operation  # T – Tributado em São Paulo
@@ -232,14 +232,17 @@ class InvoiceEletronic(models.Model):
             return atts
 
         attachment_obj = self.env['ir.attachment']
-        danfe_report = self.env['ir.actions.report.xml'].search(
-            [('report_name', '=', 'br_nfse.main_template_br_nfse_danfe')])
-        report_service = danfe_report.report_name
-        danfse = self.env['report'].get_pdf([self.id], report_service)
+        danfe_report = self.env['ir.actions.report'].search(
+            [('report_name', '=',
+              'br_nfse_paulistana.main_template_br_nfse_danfe')])
+        report_service = danfe_report.xml_id
+        danfse, dummy = self.env.ref(report_service).render_qweb_pdf([self.id])
+        report_name = safe_eval(danfe_report.print_report_name,
+                                {'object': self, 'time': time})
         if danfse:
             danfe_id = attachment_obj.create(dict(
-                name="paulistana-%08d.pdf" % self.numero,
-                datas_fname="paulistana-%08d.pdf" % self.numero,
+                name=report_name,
+                datas_fname=report_name,
                 datas=base64.b64encode(danfse),
                 mimetype='application/pdf',
                 res_model='account.invoice',

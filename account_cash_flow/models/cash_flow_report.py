@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
+# © 2016 Danimar Ribeiro, Trustcode
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
 import datetime
+from datetime import date
 import openerp.addons.decimal_precision as dp
 from openerp import api, fields, models
 
@@ -35,6 +37,7 @@ class CashFlowReport(models.TransientModel):
         self.period_balance = balance_period
         self.final_amount = balance
 
+    ignore_outstanding = fields.Boolean(string="Ignorar Vencidos?")
     end_date = fields.Date(
         string=u"End Date", required=True,
         default=fields.date.today()+datetime.timedelta(6*365/12))
@@ -113,7 +116,8 @@ class CashFlowReport(models.TransientModel):
             y=moves['despesas'],
             name='Despesas'
         )
-
+        moves.drop_duplicates(
+            subset='date_maturity', keep='last', inplace=True)
         x = acumulado_x.append(moves["date_maturity"])
         y = acumulado_y.append(moves["acumulado"])
 
@@ -121,7 +125,10 @@ class CashFlowReport(models.TransientModel):
             x=x,
             y=y,
             mode='lines+markers',
-            name="Saldo"
+            name="Saldo",
+            line=dict(
+                shape='spline'
+            )
         )
 
         data = [trace3, trace4, trace5]
@@ -164,7 +171,7 @@ class CashFlowReport(models.TransientModel):
     @api.multi
     def calculate_moves(self):
         moveline_obj = self.env['account.move.line']
-        moveline_ids = moveline_obj.search([
+        domain = [
             '|',
             ('account_id.user_type_id.type', '=', 'receivable'),
             ('account_id.user_type_id.type', '=', 'payable'),
@@ -172,7 +179,10 @@ class CashFlowReport(models.TransientModel):
             ('move_id.state', '!=', 'draft'),
             ('company_id', '=', self.env.user.company_id.id),
             ('date_maturity', '<=', self.end_date),
-        ])
+        ]
+        if self.ignore_outstanding:
+            domain += [('date_maturity', '>=', date.today())]
+        moveline_ids = moveline_obj.search(domain)
 
         moves = []
         for move in moveline_ids:
@@ -185,8 +195,9 @@ class CashFlowReport(models.TransientModel):
             if not credit and not debit:
                 continue
 
+            name = "%s/%s" % (move.move_id.name, move.ref or move.name)
             moves.append({
-                'name': move.ref or move.name,
+                'name': name,
                 'cashflow_id': self.id,
                 'partner_id': move.partner_id.id,
                 'journal_id': move.journal_id.id,

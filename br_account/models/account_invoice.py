@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+# © 2009 Renato Lima - Akretion
+# © 2016 Danimar Ribeiro, Trustcode
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
 from odoo import api, fields, models, _
@@ -11,14 +13,13 @@ class AccountInvoice(models.Model):
 
     @api.one
     @api.depends('invoice_line_ids.price_subtotal',
-                 'invoice_line_ids.price_total',
                  'tax_line_ids.amount',
                  'currency_id', 'company_id')
     def _compute_amount(self):
         super(AccountInvoice, self)._compute_amount()
         lines = self.invoice_line_ids
-        # self.total_tax = sum((l.icms_valor + l.ipi_valor + l.pis_valor + l.cofins_valor + l.ii_valor) for l in lines) #sum(l.price_tax for l in lines)
-        self.icms_base = sum(l.custom_icms_base_calculo if l.custom_icms_base_calculo > 0.0 else l.icms_base_calculo for l in lines)
+        self.total_tax = sum(l.price_tax for l in lines)
+        self.icms_base = sum(l.icms_base_calculo for l in lines)
         self.icms_value = sum(l.icms_valor for l in lines)
         self.icms_st_base = sum(l.icms_st_base_calculo for l in lines)
         self.icms_st_value = sum(l.icms_st_valor for l in lines)
@@ -68,7 +69,7 @@ class AccountInvoice(models.Model):
             l.tributos_estimados for l in lines)
         # TOTAL
         self.amount_total = self.total_bruto - \
-            self.total_desconto #+ self.total_tax
+            self.total_desconto + self.total_tax
         sign = self.type in ['in_refund', 'out_refund'] and -1 or 1
         self.amount_total_company_signed = self.amount_total * sign
         self.amount_total_signed = self.amount_total * sign
@@ -288,7 +289,7 @@ class AccountInvoice(models.Model):
         for line in self.invoice_line_ids:
             if line.quantity == 0:
                 continue
-            res[contador]['price'] = line.price_total
+            res[contador]['price'] = line.valor_liquido
 
             price = line.price_unit * (1 - (
                 line.discount or 0.0) / 100.0)
@@ -354,7 +355,7 @@ class AccountInvoice(models.Model):
                 if key not in tax_grouped:
                     tax_grouped[key] = val
                 else:
-                    tax_grouped[key]['amount'] += val['amount']
+                    tax_grouped[key]['amount'] += round(val['amount'], 2)
                     tax_grouped[key]['base'] += val['base']
         return tax_grouped
 
@@ -395,23 +396,3 @@ class AccountInvoice(models.Model):
         res['service_document_id'] = invoice.service_document_id.id
         res['service_serie_id'] = invoice.service_serie_id.id
         return res
-
-    @api.multi
-    def action_cancel(self):
-        moves = self.env['account.move']
-        for inv in self:
-            if inv.move_id:
-                moves += inv.move_id
-            if inv.payment_move_line_ids:
-                raise UserError(_('You cannot cancel an invoice which is partially paid. You need to unreconcile related payment entries first.'))
-
-        # First, set the invoices as cancelled and detach the move ids
-        self.write({'state': 'cancel', 'internal_number': False, 'move_name': False, 'move_id': False})
-        if moves:
-            # second, invalidate the move(s)
-            moves.button_cancel()
-            # delete the move this invoice was pointing to
-            # Note that the corresponding move_lines and move_reconciles
-            # will be automatically deleted too
-            moves.unlink()
-        return True

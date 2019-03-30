@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+# © 2014 KMEE (http://www.kmee.com.br)
+# @author Luis Felipe Mileo <mileo@kmee.com.br>
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
 {  # pylint: disable=C8101,C8103
@@ -6,11 +8,11 @@
     'description': """Brazilian Localization HR with informations
         refered to the national context of HR""",
     'category': 'Localization',
-    'author': 'Udoo',
+    'author': 'KMEE',
     'sequence': 45,
-    'maintainer': 'Udoo',
-    'website': 'http://www.udoo.com.br',
-    'version': '11.0.1.0.0',
+    'maintainer': 'Trustcode',
+    'website': 'http://www.trustcode.com.br/',
+    'version': '12.0.1.0.0',
     'depends': ['hr', 'br_base'],
     'data': [
         'data/br_hr.cbo.csv',

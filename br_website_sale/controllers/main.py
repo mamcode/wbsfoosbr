@@ -9,8 +9,7 @@ from werkzeug.exceptions import Forbidden
 import odoo.addons.website_sale.controllers.main as main
 from odoo.addons.br_base.tools.fiscal import validate_cnpj, validate_cpf
 from odoo.addons.portal.controllers.portal import CustomerPortal
-import logging
-_logger = logging.getLogger(__name__)
+
 
 class L10nBrWebsiteSale(main.WebsiteSale):
 
@@ -151,11 +150,6 @@ class L10nBrWebsiteSale(main.WebsiteSale):
                         'country_id': zip_ids[0].country_id.id}
 
         return {'sucesso': False}
-
-    def _get_shop_payment_values(self, order, **kwargs):
-        res = super(L10nBrWebsiteSale, self)._get_shop_payment_values(order)
-        _logger.info("========================%s",res)
-        return res
 
 
 class BrWebsiteMyAccount(CustomerPortal):

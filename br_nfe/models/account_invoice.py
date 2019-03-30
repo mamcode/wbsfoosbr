@@ -36,28 +36,28 @@ class AccountInvoice(models.Model):
     nfe_exception_number = fields.Integer(
         string=u"Número NFe", compute="_compute_nfe_number")
 
-    # @api.multi
-    # def action_invoice_draft(self):
-    #     for item in self:
-    #         docs = self.env['invoice.eletronic'].search(
-    #             [('invoice_id', '=', item.id)])
-    #         for doc in docs:
-    #             if doc.state in ('done', 'denied', 'cancel'):
-    #                 raise UserError('Nota fiscal já emitida para esta fatura - \
-    #                                 Duplique a fatura para continuar')
-    #     return super(AccountInvoice, self).action_invoice_draft()
+    @api.multi
+    def action_invoice_draft(self):
+        for item in self:
+            docs = self.env['invoice.eletronic'].search(
+                [('invoice_id', '=', item.id)])
+            for doc in docs:
+                if doc.state in ('done', 'denied', 'cancel'):
+                    raise UserError('Nota fiscal já emitida para esta fatura - \
+                                    Duplique a fatura para continuar')
+        return super(AccountInvoice, self).action_invoice_draft()
 
     def invoice_print(self):
         doc = self.env['invoice.eletronic'].search(
             [('invoice_id', '=', self.id)], limit=1)
-        if doc.model == '55':
+        if doc.model in ('55', '65'):
             return self.env.ref(
                 'br_nfe.report_br_nfe_danfe').report_action(doc)
         else:
             return super(AccountInvoice, self).invoice_print()
 
     def _return_pdf_invoice(self, doc):
-        if doc.model == '55':
+        if doc.model in ('55', '65'):
             return 'br_nfe.report_br_nfe_danfe'
         return super(AccountInvoice, self)._return_pdf_invoice(doc)
 
@@ -82,11 +82,12 @@ class AccountInvoice(models.Model):
         res = super(AccountInvoice, self)._prepare_edoc_vals(
             inv, inv_lines, serie_id)
 
-        # numero_nfe = self.action_number(serie_id)
+        # Feito para evitar que o número seja incrementado duas vezes
         if 'numero' not in res:
             numero_nfe = self.action_number(serie_id)
         else:
             numero_nfe = res['numero']
+
         res['payment_mode_id'] = inv.payment_mode_id.id
         res['ind_pres'] = inv.fiscal_position_id.ind_pres
         res['finalidade_emissao'] = inv.fiscal_position_id.finalidade_emissao
@@ -170,6 +171,11 @@ class AccountInvoice(models.Model):
             }))
 
         res['fiscal_document_related_ids'] = documentos
+
+        # NFC-e
+        res['troco'] = 0.0
+        res['metodo_pagamento'] = inv.payment_mode_id.tipo_pagamento or '01'
+        res['valor_pago'] = inv.amount_total
         return res
 
     def _prepare_edoc_item_vals(self, invoice_line):

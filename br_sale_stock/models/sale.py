@@ -6,12 +6,10 @@
 
 from datetime import timedelta
 
-from odoo import api, fields, models, _
+from odoo import api, fields, models
 from odoo.addons import decimal_precision as dp
 from odoo.exceptions import UserError
-from odoo.osv import expression
-import logging
-_logger = logging.getLogger(__name__)
+
 
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
@@ -149,48 +147,5 @@ class SaleOrderLine(models.Model):
 
         res['valor_seguro'] = self.valor_seguro
         res['outras_despesas'] = self.outras_despesas
-        res['valor_frete'] = self.valor_frete * (round(
-            res['quantity'] / self.product_uom_qty, 2))
-        return res
-
-class ProcurementGroup(models.Model):
-
-    _inherit = 'procurement.group'
-    _description = 'Procurement Requisition'
-    _order = "id desc"
-
-    @api.model
-    def run(self, product_id, product_qty, product_uom, location_id, name, origin, values):
-        values.setdefault('company_id', self.env['res.company']._company_default_get('procurement.group'))
-        values.setdefault('priority', '1')
-        values.setdefault('date_planned', fields.Datetime.now())
-        rule = self._get_rule(product_id, location_id, values)
-        if not rule:
-            raise UserError(_('No procurement rule found. Please verify the configuration of %s routes, product id %s') % (product_id.name, product_id.id, ))
-        getattr(rule, '_run_%s' % rule.action)(product_id, product_qty, product_uom, location_id, name, origin, values)
-        return True
-
-    @api.model
-    def _search_rule(self, product_id, values, domain):
-        """ First find a rule among the ones defined on the procurement
-        group; then try on the routes defined for the product; finally fallback
-        on the default behavior """
-        if values.get('warehouse_id', False):
-            domain = expression.AND([['|', ('warehouse_id', '=', values['warehouse_id'].id), ('warehouse_id', '=', False)], domain])
-        Pull = self.env['procurement.rule']
-        res = self.env['procurement.rule']
-        _logger.info("=======product_id=====%s========%s",product_id, domain)
-        if values.get('route_ids', False):
-            res = Pull.search(expression.AND([[('route_id', 'in', values['route_ids'].ids)], domain]), order='route_sequence, sequence', limit=1)
-            _logger.info("=======values==%s=====%s",res, values.get('route_ids', False))
-        if not res:
-            product_routes = product_id.route_ids | product_id.categ_id.total_route_ids
-            if product_routes:
-                res = Pull.search(expression.AND([[('route_id', 'in', product_routes.ids)], domain]), order='route_sequence, sequence', limit=1)
-            _logger.info("=======product_routes not res=1===%s=======%s",res, product_routes)
-        if not res:
-            warehouse_routes = values['warehouse_id'].route_ids
-            if warehouse_routes:
-                res = Pull.search(expression.AND([[('route_id', 'in', warehouse_routes.ids)], domain]), order='route_sequence, sequence', limit=1)
-            _logger.info("=======warehouse_routes not res=2====%s======%s======%s",res, warehouse_routes, [[('route_id', 'in', warehouse_routes.ids)], domain])
+        res['valor_frete'] = self.valor_frete
         return res

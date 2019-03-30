@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # © 2016 Danimar Ribeiro <danimaribeiro@gmail.com>, Trustcode
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
@@ -7,13 +7,11 @@ import io
 import base64
 import logging
 import pytz
-import copy
+import hashlib
 from lxml import etree
 from datetime import datetime
 from odoo import api, fields, models
 from odoo.exceptions import UserError
-from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTFT
-from odoo.tools import DEFAULT_SERVER_DATE_FORMAT as DATE_FORMAT
 
 _logger = logging.getLogger(__name__)
 
@@ -28,8 +26,9 @@ try:
         gerar_nfeproc_cancel
     from pytrustnfe.nfe.danfe import danfe
     from pytrustnfe.xml.validate import valida_nfe
+    from pytrustnfe.urls import url_qrcode
 except ImportError:
-    _logger.info('Cannot import pytrustnfe', exc_info=True)
+    _logger.error('Cannot import pytrustnfe', exc_info=True)
 
 STATE = {'edit': [('readonly', False)]}
 
@@ -56,7 +55,7 @@ class InvoiceEletronic(models.Model):
         }
 
     payment_mode_id = fields.Many2one(
-        'payment.mode', string='Modo de Pagamento',
+        'l10n_br.payment.mode', string='Modo de Pagamento',
         readonly=True, states=STATE)
     state = fields.Selection(selection_add=[('denied', 'Denegado')])
     ambiente_nfe = fields.Selection(
@@ -187,6 +186,26 @@ class InvoiceEletronic(models.Model):
         help=u'Total total do ICMS relativo Fundo de Combate à Pobreza (FCP) \
         da UF de destino')
 
+    # NFC-e
+    qrcode_hash = fields.Char(string='QR-Code hash')
+    qrcode_url = fields.Char(string='QR-Code URL')
+    metodo_pagamento = fields.Selection(
+        [('01', 'Dinheiro'),
+         ('02', 'Cheque'),
+         ('03', 'Cartão de Crédito'),
+         ('04', 'Cartão de Débito'),
+         ('05', 'Crédito Loja'),
+         ('10', 'Vale Alimentação'),
+         ('11', 'Vale Refeição'),
+         ('12', 'Vale Presente'),
+         ('13', 'Vale Combustível'),
+         ('15', 'Boleto Bancário'),
+         ('90', 'Sem pagamento'),
+         ('99', 'Outros')],
+        string="Forma de Pagamento", default="01")
+    valor_pago = fields.Monetary(string='Valor pago')
+    troco = fields.Monetary(string='Troco')
+
     # Documentos Relacionados
     fiscal_document_related_ids = fields.One2many(
         'br_account.document.related', 'invoice_eletronic_id',
@@ -214,14 +233,9 @@ class InvoiceEletronic(models.Model):
     @api.multi
     def _hook_validation(self):
         errors = super(InvoiceEletronic, self)._hook_validation()
-        if self.model == '55':
+        if self.model in ('55', '65'):
             if not self.company_id.partner_id.inscr_est:
                 errors.append(u'Emitente / Inscrição Estadual')
-            if not self.fiscal_position_id:
-                errors.append(u'Configure a posição fiscal')
-            if self.company_id.accountant_id and not \
-               self.company_id.accountant_id.cnpj_cpf:
-                errors.append(u'Emitente / CNPJ do escritório contabilidade')
 
             for eletr in self.eletronic_item_ids:
                 prod = u"Produto: %s - %s" % (eletr.product_id.default_code,
@@ -240,20 +254,25 @@ class InvoiceEletronic(models.Model):
                     errors.append(u'%s - CST do PIS' % prod)
                 if not eletr.cofins_cst:
                     errors.append(u'%s - CST do Cofins' % prod)
+        # NF-e
+        if self.model == '55':
+            if not self.fiscal_position_id:
+                errors.append(u'Configure a posição fiscal')
+            if self.company_id.accountant_id and not \
+               self.company_id.accountant_id.cnpj_cpf:
+                errors.append(u'Emitente / CNPJ do escritório contabilidade')
+        # NFC-e
+        if self.model == '65':
+            if len(self.company_id.id_token_csc or '') != 6:
+                errors.append(u"Identificador do CSC inválido")
+            if not len(self.company_id.csc or ''):
+                errors.append(u"CSC Inválido")
+            if self.partner_id.cnpj_cpf is None:
+                errors.append(u"CNPJ/CPF do Parceiro inválido")
+            if len(self.serie) == 0:
+                errors.append(u"Número de Série da NFe Inválido")
 
         return errors
-
-    @api.multi
-    def _get_serial_number(self, item):
-        rec_id = False
-        if self.code:
-            invoice_id = self.env['account.invoice'].search([('number', '=', self.code)])
-            if invoice_id.type == 'out_invoice':
-                order = self.env['sale.order'].search([('name', '=', invoice_id.origin)])
-                if order:
-                    picking = order.picking_ids[0]
-                    if picking and picking.move_line_ids:
-                        return picking.move_line_ids.filtered(lambda r: r.product_id == item.product_id)
 
     @api.multi
     def _prepare_eletronic_invoice_item(self, item, invoice):
@@ -273,13 +292,12 @@ class InvoiceEletronic(models.Model):
             'cProd': item.product_id.default_code,
             'cEAN': item.product_id.barcode or 'SEM GTIN',
             'xProd': xProd,
-            'NCM': re.sub('[^0-9]', '', item.ncm or '')[:8],
-            'EXTIPI': re.sub('[^0-9]', '', item.ncm or '')[8:],
+            'NCM': re.sub('[^0-9]', '', item.ncm or '00')[:8],
             'CFOP': item.cfop,
             'uCom': '{:.6}'.format(item.uom_id.name or ''),
             'qCom': item.quantidade,
             'vUnCom': "%.02f" % item.preco_unitario,
-            'vProd':  "%.02f" % (item.preco_unitario * item.quantidade),
+            'vProd':  "%.02f" % item.valor_bruto,
             'cEANTrib': item.product_id.barcode or 'SEM GTIN',
             'uTrib': '{:.6}'.format(item.uom_id.name or ''),
             'qTrib': item.quantidade,
@@ -308,15 +326,12 @@ class InvoiceEletronic(models.Model):
                     'nDraw': adi.drawback_number or '',
                 })
 
-            dt_registration = datetime.strptime(
-                di.date_registration, DATE_FORMAT)
-            dt_release = datetime.strptime(di.date_release, DATE_FORMAT)
             di_vals.append({
                 'nDI': di.name,
-                'dDI': dt_registration.strftime('%Y-%m-%d'),
+                'dDI': di.date_registration.strftime('%Y-%m-%d'),
                 'xLocDesemb': di.location,
                 'UFDesemb': di.state_id.code,
-                'dDesemb': dt_release.strftime('%Y-%m-%d'),
+                'dDesemb': di.date_release.strftime('%Y-%m-%d'),
                 'tpViaTransp': di.type_transportation,
                 'vAFRMM': "%.02f" % di.afrmm_value if di.afrmm_value else '',
                 'tpIntermedio': di.type_import,
@@ -330,31 +345,6 @@ class InvoiceEletronic(models.Model):
 
         imposto = {
             'vTotTrib': "%.02f" % item.tributos_estimados,
-            'ICMS': {
-                'orig':  item.origem,
-                'CST': item.icms_cst,
-                'modBC': item.icms_tipo_base,
-                'vBC': "%.02f" % item.icms_base_calculo,
-                'pRedBC': "%.02f" % item.icms_aliquota_reducao_base,
-                'pICMS': "%.02f" % item.icms_aliquota,
-                'vICMS': "%.02f" % item.icms_valor,
-                'modBCST': item.icms_st_tipo_base,
-                'pMVAST': "%.02f" % item.icms_st_aliquota_mva,
-                'pRedBCST': "%.02f" % item.icms_st_aliquota_reducao_base,
-                'vBCST': "%.02f" % item.icms_st_base_calculo,
-                'pICMSST': "%.02f" % item.icms_st_aliquota,
-                'vICMSST': "%.02f" % item.icms_st_valor,
-                'pCredSN': "%.02f" % item.icms_aliquota_credito,
-                'vCredICMSSN': "%.02f" % item.icms_valor_credito
-            },
-            'IPI': {
-                'clEnq': item.classe_enquadramento_ipi or '',
-                'cEnq': item.codigo_enquadramento_ipi,
-                'CST': item.ipi_cst,
-                'vBC': "%.02f" % item.ipi_base_calculo,
-                'pIPI': "%.02f" % item.ipi_aliquota,
-                'vIPI': "%.02f" % item.ipi_valor
-            },
             'PIS': {
                 'CST': item.pis_cst,
                 'vBC': "%.02f" % item.pis_base_calculo,
@@ -374,6 +364,57 @@ class InvoiceEletronic(models.Model):
                 'vIOF': "%.02f" % item.ii_valor_iof
             },
         }
+        if item.tipo_produto == 'service':
+            retencoes = item.pis_valor_retencao + \
+                item.cofins_valor_retencao + item.inss_valor_retencao + \
+                item.irrf_valor_retencao + item.csll_valor_retencao
+            imposto.update({
+                'ISSQN': {
+                    'vBC': "%.02f" % item.issqn_base_calculo,
+                    'vAliq': "%.02f" % item.issqn_aliquota,
+                    'vISSQN': "%.02f" % item.issqn_valor,
+                    'cMunFG': "%s%s" % (invoice.company_id.state_id.ibge_code,
+                                        invoice.company_id.city_id.ibge_code),
+                    'cListServ': item.issqn_codigo,
+                    'vDeducao': '',
+                    'vOutro': "%.02f" % retencoes if retencoes else '',
+                    'vISSRet': "%.02f" % item.issqn_valor_retencao
+                    if item.issqn_valor_retencao else '',
+                    'indISS': 1,  # Exigivel
+                    'cServico': item.issqn_codigo,
+                    'cMun': "%s%s" % (invoice.company_id.state_id.ibge_code,
+                                      invoice.company_id.city_id.ibge_code),
+                    'indIncentivo': 2,  # Não
+                }
+            })
+        else:
+            imposto.update({
+                'ICMS': {
+                    'orig':  item.origem,
+                    'CST': item.icms_cst,
+                    'modBC': item.icms_tipo_base,
+                    'vBC': "%.02f" % item.icms_base_calculo,
+                    'pRedBC': "%.02f" % item.icms_aliquota_reducao_base,
+                    'pICMS': "%.02f" % item.icms_aliquota,
+                    'vICMS': "%.02f" % item.icms_valor,
+                    'modBCST': item.icms_st_tipo_base,
+                    'pMVAST': "%.02f" % item.icms_st_aliquota_mva,
+                    'pRedBCST': "%.02f" % item.icms_st_aliquota_reducao_base,
+                    'vBCST': "%.02f" % item.icms_st_base_calculo,
+                    'pICMSST': "%.02f" % item.icms_st_aliquota,
+                    'vICMSST': "%.02f" % item.icms_st_valor,
+                    'pCredSN': "%.02f" % item.icms_aliquota_credito,
+                    'vCredICMSSN': "%.02f" % item.icms_valor_credito
+                },
+                'IPI': {
+                    'clEnq': item.classe_enquadramento_ipi or '',
+                    'cEnq': item.codigo_enquadramento_ipi,
+                    'CST': item.ipi_cst,
+                    'vBC': "%.02f" % item.ipi_base_calculo,
+                    'pIPI': "%.02f" % item.ipi_aliquota,
+                    'vIPI': "%.02f" % item.ipi_valor
+                },
+            })
         if item.tem_difal:
             imposto['ICMSUFDest'] = {
                 'vBCUFDest': "%.02f" % item.icms_bc_uf_dest,
@@ -393,8 +434,6 @@ class InvoiceEletronic(models.Model):
         if self.model not in ('55', '65'):
             return res
 
-        dt_emissao = datetime.strptime(self.data_emissao, DTFT)
-
         ide = {
             'cUF': self.company_id.state_id.ibge_code,
             'cNF': "%08d" % self.numero_controle,
@@ -402,8 +441,8 @@ class InvoiceEletronic(models.Model):
             'mod': self.model,
             'serie': self.serie.code,
             'nNF': self.numero,
-            'dhEmi': dt_emissao.strftime('%Y-%m-%dT%H:%M:%S-00:00'),
-            'dhSaiEnt': dt_emissao.strftime('%Y-%m-%dT%H:%M:%S-00:00'),
+            'dhEmi': self.data_emissao.strftime('%Y-%m-%dT%H:%M:%S-00:00'),
+            'dhSaiEnt': self.data_emissao.strftime('%Y-%m-%dT%H:%M:%S-00:00'),
             'tpNF': '0' if self.tipo_operacao == 'entrada' else '1',
             'idDest': self.ind_dest or 1,
             'cMunFG': "%s%s" % (self.company_id.state_id.ibge_code,
@@ -473,6 +512,7 @@ class InvoiceEletronic(models.Model):
             'enderEmit': {
                 'xLgr': self.company_id.street,
                 'nro': self.company_id.number,
+                'xCpl': self.company_id.street2 or '',
                 'xBairro': self.company_id.district,
                 'cMun': '%s%s' % (
                     self.company_id.partner_id.state_id.ibge_code,
@@ -484,7 +524,7 @@ class InvoiceEletronic(models.Model):
                 'xPais': self.company_id.country_id.name,
                 'fone': re.sub('[^0-9]', '', self.company_id.phone or '')
             },
-            'IE':  re.sub('[^0-9]', '', self.company_id.inscr_est),
+            'IE': re.sub('[^0-9]', '', self.company_id.inscr_est),
             'CRT': self.company_id.fiscal_type,
         }
         if self.company_id.cnae_main_id and self.company_id.inscr_mun:
@@ -502,6 +542,7 @@ class InvoiceEletronic(models.Model):
                 'enderDest': {
                     'xLgr': partner.street,
                     'nro': partner.number,
+                    'xCpl': partner.street2 or '',
                     'xBairro': partner.district,
                     'cMun': '%s%s' % (partner.state_id.ibge_code,
                                       partner.city_id.ibge_code),
@@ -529,6 +570,7 @@ class InvoiceEletronic(models.Model):
                 dest['enderDest']['UF'] = 'EX'
                 dest['enderDest']['xMun'] = 'Exterior'
                 dest['enderDest']['cMun'] = '9999999'
+                dest['enderDest']['CEP'] = ''
                 exporta = {
                     'UFSaidaPais': self.uf_saida_pais_id.code or '',
                     'xLocExporta': self.local_embarque or '',
@@ -543,19 +585,9 @@ class InvoiceEletronic(models.Model):
             })
 
         eletronic_items = []
-        lot_ids = []
         for item in self.eletronic_item_ids:
-            item_prod = self._prepare_eletronic_invoice_item(item, self)
-            serial_data = self._get_serial_number(item)
-            if serial_data:
-                for lot in serial_data:
-                    if lot.id not in lot_ids:
-                        new_prod = copy.deepcopy(item_prod)
-                        new_prod['prod']['xProd'] = new_prod['prod']['xProd']
-                        eletronic_items.append(new_prod)
-                        lot_ids.append(lot.id)
-            else:
-                eletronic_items.append(item_prod)
+            eletronic_items.append(
+                self._prepare_eletronic_invoice_item(item, self))
         total = {
             # ICMS
             'vBC': "%.02f" % self.valor_bc_icms,
@@ -581,11 +613,40 @@ class InvoiceEletronic(models.Model):
             'vICMSUFDest': "%.02f" % self.valor_icms_uf_dest,
             'vICMSUFRemet': "%.02f" % self.valor_icms_uf_remet,
             'vTotTrib': "%.02f" % self.valor_estimado_tributos,
-            # ISSQn
-            'vServ': '0.00',
-            # Retenções
-
         }
+        if self.valor_servicos > 0.0:
+            issqn_total = {
+                'vServ': "%.02f" % self.valor_servicos
+                if self.valor_servicos else "",
+                'vBC': "%.02f" % self.valor_bc_issqn
+                if self.valor_bc_issqn else "",
+                'vISS': "%.02f" % self.valor_issqn if self.valor_issqn else "",
+                'vPIS': "%.02f" % self.valor_pis_servicos
+                if self.valor_pis_servicos else "",
+                'vCOFINS': "%.02f" % self.valor_cofins_servicos
+                if self.valor_cofins_servicos else "",
+                'dCompet': self.data_emissao.strftime('%Y-%m-%d'),
+                'vDeducao': "",
+                'vOutro': "",
+                'vISSRet': "%.02f" % self.valor_retencao_issqn
+                if self.valor_retencao_issqn else '',
+            }
+            tributos_retidos = {
+                'vRetPIS': "%.02f" % self.valor_retencao_pis
+                if self.valor_retencao_pis else '',
+                'vRetCOFINS': "%.02f" % self.valor_retencao_cofins
+                if self.valor_retencao_cofins else '',
+                'vRetCSLL': "%.02f" % self.valor_retencao_csll
+                if self.valor_retencao_csll else '',
+                'vBCIRRF': "%.02f" % self.valor_bc_irrf
+                if self.valor_retencao_irrf else '',
+                'vIRRF': "%.02f" % self.valor_retencao_irrf
+                if self.valor_retencao_irrf else '',
+                'vBCRetPrev': "%.02f" % self.valor_bc_inss
+                if self.valor_retencao_inss else '',
+                'vRetPrev': "%.02f" % self.valor_retencao_inss
+                if self.valor_retencao_inss else '',
+            }
         if self.transportadora_id.street:
             end_transp = "%s - %s, %s" % (self.transportadora_id.street,
                                           self.transportadora_id.number or '',
@@ -690,18 +751,45 @@ class InvoiceEletronic(models.Model):
             'exporta': exporta,
             'compra': compras,
         }
+        if self.valor_servicos > 0.0:
+            vals.update({
+                'ISSQNtot': issqn_total,
+                'retTrib': tributos_retidos,
+            })
         if len(duplicatas) > 0 and\
-                self.fiscal_position_id.finalidade_emissao != '4':
+                self.fiscal_position_id.finalidade_emissao not in ('2', '4'):
             vals['cobr'] = cobr
             pag['tPag'] = '01' if pag['tPag'] == '90' else pag['tPag']
             pag['vPag'] = "%.02f" % self.valor_final
+
+        if self.model == '65':
+            vals['pag'][0]['tPag'] = self.metodo_pagamento
+            vals['pag'][0]['vPag'] = "%.02f" % self.valor_pago
+            vals['pag'][0]['vTroco'] = "%.02f" % self.troco or '0.00'
+
+            chave_nfe = self.chave_nfe
+            ambiente = 1 if self.ambiente == 'producao' else 2
+            estado = self.company_id.state_id.ibge_code
+
+            cid_token = int(self.company_id.id_token_csc)
+            csc = self.company_id.csc
+
+            c_hash_QR_code = "{0}|2|{1}|{2}{3}".format(
+                chave_nfe, ambiente, int(cid_token), csc)
+            c_hash_QR_code = hashlib.sha1(c_hash_QR_code.encode()).hexdigest()
+
+            QR_code_url = "p={0}|2|{1}|{2}|{3}".format(
+                chave_nfe, ambiente, int(cid_token), c_hash_QR_code)
+            qr_code_server = url_qrcode(estado, str(ambiente))
+            vals['qrCode'] = qr_code_server + QR_code_url
+            vals['urlChave'] = qr_code_server.replace('?', '')
         return vals
 
     @api.multi
     def _prepare_lote(self, lote, nfe_values):
         return {
             'idLote': lote,
-            'indSinc': 0,
+            'indSinc': 1 if self.company_id.nfe_sinc else 0,
             'estado': self.company_id.partner_id.state_id.ibge_code,
             'ambiente': 1 if self.ambiente == 'producao' else 2,
             'NFes': [{
@@ -759,7 +847,7 @@ class InvoiceEletronic(models.Model):
         chave_dict = {
             'cnpj': re.sub('[^0-9]', '', self.company_id.cnpj_cpf),
             'estado': self.company_id.state_id.ibge_code,
-            'emissao': self.data_emissao[2:4] + self.data_emissao[5:7],
+            'emissao': self.data_emissao.strftime("%y%M"),
             'modelo': self.model,
             'numero': self.numero,
             'serie': self.serie.code.zfill(3),
@@ -806,17 +894,7 @@ class InvoiceEletronic(models.Model):
         certificado = Certificado(cert_pfx, self.company_id.nfe_a1_password)
 
         xml_to_send = base64.decodestring(self.xml_to_send).decode('utf-8')
-        import string
-        _logger.info("----------before-------------%s", xml_to_send)
-        signature = '<SignatureValue>'+xml_to_send.split('<SignatureValue>')[1].split('</SignatureValue>')[0]+'</SignatureValue>'
-        xml_to_send = ''.join(x for x in xml_to_send if x in string.printable)
-        xml_to_send= re.sub('\s+(?=<)','', xml_to_send)
-        xml_to_send= re.sub('\n','', xml_to_send)
-        code1 = xml_to_send.split('<SignatureValue>')[0]
-        code2 = xml_to_send.split('</SignatureValue>')[1]
-        xml_to_send = code1+signature+code2
-        _logger.info("----------xml_to_send-------------%s", xml_to_send)
-    
+
         resposta_recibo = None
         resposta = autorizar_nfe(
             certificado, xml=xml_to_send,

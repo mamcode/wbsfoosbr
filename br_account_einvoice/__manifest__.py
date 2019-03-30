@@ -1,15 +1,20 @@
 # -*- coding: utf-8 -*-
+# © 2016 Danimar Ribeiro <danimaribeiro@gmail.com>, Trustcode
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
 {  # pylint: disable=C8101,C8103
     'name': 'Account E-Invoice',
     'summary': """Base Module for the Brazilian Invoice Eletronic""",
     'description': """Base Module for the Brazilian Invoice Eletronic""",
-    'version': '11.0.1.0.0',
+    'version': '12.0.1.0.0',
     'category': 'account',
-    'author': 'Udoo',
+    'author': 'Trustcode',
     'license': 'AGPL-3',
-    'website': 'http://www.udoo.com.br',
+    'website': 'http://www.trustcode.com.br',
+    'contributors': [
+        'Danimar Ribeiro <danimaribeiro@gmail.com>',
+        'Mackilem Van der Laan <mack.vdl@gmail.com>',
+    ],
     'depends': [
         'document',
         'br_base',

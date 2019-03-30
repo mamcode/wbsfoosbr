@@ -1,2 +1,0 @@
-"id","name","model_id:id","group_id:id","perm_read","perm_write","perm_create","perm_unlink"
-"res_region","res.region","model_res_region","base.group_partner_manager",1,1,1,1

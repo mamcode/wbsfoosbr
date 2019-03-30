@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# © 2016 Fábio Luna <fabiocluna@hotmail.com>, Trustcode
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
 from odoo import models, fields, api
@@ -13,6 +14,10 @@ class AccountInvoiceRefund(models.TransientModel):
     @api.multi
     def invoice_refund(self):
         res = super(AccountInvoiceRefund, self).invoice_refund()
+        if type(res) is bool:
+            return res
+        if "domain" not in res:
+            return res
 
         invoice_id = res['domain'][1][2][0]
         invoice_id = self.env['account.invoice'].search([

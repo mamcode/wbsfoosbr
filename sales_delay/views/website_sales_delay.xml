@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<odoo>
-  <template id="sales_delay_add_cart" name="Sales Delay Availability" inherit_id="website_sale.product">
-     <xpath expr="//a[@id='add_to_cart']" position="before">
-      <p>Sales Delay:<span t-field="product.sales_delay"/></p>
-    </xpath>
-  </template>
-</odoo>

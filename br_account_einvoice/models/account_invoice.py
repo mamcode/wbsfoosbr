@@ -7,9 +7,7 @@ from random import SystemRandom
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
-from odoo.tools import float_is_zero, float_compare
-import logging
-_logger = logging.getLogger(__name__)
+
 
 TYPE2EDOC = {
     'out_invoice': 'saida',        # Customer Invoice
@@ -74,10 +72,6 @@ class AccountInvoice(models.Model):
         if not docs:
             raise UserError(u'Não existe um E-Doc relacionado à esta fatura')
 
-        for doc in docs:
-            if doc.state not in ('done', 'cancel'):
-                raise UserError('Nota Fiscal na fila de envio. Aguarde!')
-
         if len(docs) > 1:
             return {
                 'type': 'ir.actions.act_window',
@@ -123,7 +117,7 @@ class AccountInvoice(models.Model):
             'icms_aliquota': line.icms_aliquota,
             'icms_tipo_base': line.icms_tipo_base,
             'icms_aliquota_reducao_base': line.icms_aliquota_reducao_base,
-            'icms_base_calculo': line.custom_icms_base_calculo if line.custom_icms_base_calculo > 0.00 else line.icms_base_calculo,
+            'icms_base_calculo': line.icms_base_calculo,
             'icms_valor': line.icms_valor,
             # - ICMS ST -
             'icms_st_aliquota': line.icms_st_aliquota,
@@ -195,6 +189,7 @@ class AccountInvoice(models.Model):
             'tipo_operacao': TYPE2EDOC[invoice.type],
             'numero_controle': num_controle,
             'data_emissao': datetime.now(),
+            'data_agendada': invoice.date_invoice,
             'data_fatura': datetime.now(),
             'finalidade_emissao': '1',
             'partner_id': invoice.partner_id.id,
@@ -226,12 +221,21 @@ class AccountInvoice(models.Model):
             'valor_retencao_inss': invoice.inss_retention,
         }
 
+        total_produtos = total_servicos = 0.0
         eletronic_items = []
         for inv_line in inv_lines:
+            if inv_line.product_type == 'service':
+                total_servicos += inv_line.valor_bruto
+            else:
+                total_produtos += inv_line.valor_bruto
             eletronic_items.append((0, 0,
                                     self._prepare_edoc_item_vals(inv_line)))
 
-        vals['eletronic_item_ids'] = eletronic_items
+        vals.update({
+            'eletronic_item_ids': eletronic_items,
+            'valor_servicos': total_servicos,
+            'valor_bruto': total_produtos,
+        })
         return vals
 
     @api.multi
@@ -239,15 +243,20 @@ class AccountInvoice(models.Model):
         res = super(AccountInvoice, self).invoice_validate()
         for item in self:
             if item.product_document_id.electronic:
-                inv_lines = item.invoice_line_ids.filtered(
-                    lambda x: x.product_id.fiscal_type == 'product')
+                if item.company_id.l10n_br_nfse_conjugada:
+                    inv_lines = item.invoice_line_ids
+                else:
+                    inv_lines = item.invoice_line_ids.filtered(
+                        lambda x: x.product_id.fiscal_type == 'product')
                 if inv_lines:
                     edoc_vals = self._prepare_edoc_vals(
                         item, inv_lines, item.product_serie_id)
                     eletronic = self.env['invoice.eletronic'].create(edoc_vals)
                     eletronic.validate_invoice()
                     eletronic.action_post_validate()
-            if item.service_document_id.nfse_eletronic:
+
+            if item.service_document_id.nfse_eletronic and \
+               not item.company_id.l10n_br_nfse_conjugada:
                 inv_lines = item.invoice_line_ids.filtered(
                     lambda x: x.product_id.fiscal_type == 'service')
                 if inv_lines:
@@ -265,11 +274,11 @@ class AccountInvoice(models.Model):
             edocs = self.env['invoice.eletronic'].search(
                 [('invoice_id', '=', item.id)])
             for edoc in edocs:
-                # if edoc.state == 'done':
-                #     raise UserError(u'Documento eletrônico emitido - Cancele o \
-                #                     documento para poder cancelar a fatura')
+                if edoc.state == 'done':
+                    raise UserError(u'Documento eletrônico emitido - Cancele o \
+                                    documento para poder cancelar a fatura')
                 if edoc.can_unlink():
-                    edoc.unlink()
+                    edoc.sudo().unlink()
         return res
 
 

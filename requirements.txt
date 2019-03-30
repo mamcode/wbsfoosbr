@@ -1,4 +1,4 @@
-pillow==3.4.2
+pillow
 ofxparse==0.16
 suds-jurko-requests
 pytrustnfe3>=0.10.0
@@ -6,19 +6,4 @@ python3-cnab
 python3-boleto
 xmlsec
 lxml==4.2.3
-pagseguro
-flake8==2.6.2
-pytest==2.9.2
-pytest-cov==2.3.0
-pytest-sugar==0.7.1
-responses==0.5.1
-requests>=2.11.1
-xmltodict>=0.10.2
-arrow>=0.8.0
-coveralls
-reportlab
-pytest
-pytest-cov
-acme-tiny
-IPy
-zeep
+pycnab240

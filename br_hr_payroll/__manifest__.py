@@ -2,6 +2,8 @@
 ##############################################################################
 #
 #    Brazillian Human Resources Payroll module for OpenERP
+#    Copyright (C) 2014 KMEE (http://www.kmee.com.br)
+#    @author Luis Felipe Mileo <mileo@kmee.com.br>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -21,14 +23,14 @@
 {  # pylint: disable=C8101,C8103
     'name': 'Folha de Pagamento Brasil',
     'summary': """Permite gerar o cálculo automático do pagamento a seus
-        funcionários""",
+        funcionários - Mantido por Trustcode""",
     'description': 'Folha de Pagamento Brasil',
     'category': 'Localization',
-    'author': 'Udoo',
+    'author': 'KMEE',
     'license': 'AGPL-3',
-    'maintainer': 'Udoo',
-    'website': 'http://www.udoo.com.br',
-    'version': '11.0.1.0.0',
+    'maintainer': 'Trustcode',
+    'website': 'http://www.trustcode.com.br',
+    'version': '12.0.1.0.0',
     'depends': ['hr_payroll', 'hr_contract', 'br_hr'],
     'data': [
         'data/br_hr_payroll_data.xml',

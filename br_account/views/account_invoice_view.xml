@@ -13,9 +13,6 @@
         <field name="model">account.invoice</field>
         <field name="inherit_id" ref="account.invoice_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//sheet/label" position="before">
-                <div class="oe_button_box" name="button_box"></div>
-            </xpath>
             <field name="fiscal_position_id" position="replace"></field>
             <field name="payment_term_id" position="after">
                 <field name="fiscal_position_id" domain="['|', ('fiscal_type', '=', None), ('fiscal_type', '=', 'saida')]" />
@@ -125,7 +122,7 @@
             </xpath>
             <field name="fiscal_position_id" position="replace"></field>
             <field name="reference" position="after">
-                <field name="fiscal_position_id" domain="['|', ('fiscal_type', '=', None), ('fiscal_type', '=', 'entrada')]" /></field>
+                <field name="fiscal_position_id" domain="['|', ('fiscal_type', '=', 'import'), '|', ('fiscal_type', '=', 'entrada'), ('fiscal_type', '=', None)]"/></field>
             <field name="partner_bank_id" position="after">
                 <field name="product_document_id" />
                 <field name="product_serie_id" />
@@ -293,7 +290,6 @@
                                     <field name="icms_rule_id" />
                                     <field name="icms_base_calculo_manual" groups="br_account.group_edit_bases_calculo"/>
                                     <field name="icms_base_calculo"/>
-                                    <field name="custom_icms_base_calculo"/>
                                     <field name="icms_aliquota_reducao_base"/>
                                     <field name="tax_icms_id" />
                                     <field name="icms_aliquota" invisible="1"/>
@@ -344,7 +340,7 @@
                         <page name="ipi" string="IPI" attrs="{'invisible': [('product_type','=', 'service')]}">
                             <group string="Detalhes do IPI">
                                 <group>
-                                    <field name="ipi_cst" attrs="{'required': [('product_type','=', 'product')]}"/>
+                                    <field name="ipi_cst"/>
                                     <field name="ipi_tipo"/>
                                     <field name="ipi_rule_id" />
                                 </group>
@@ -361,7 +357,7 @@
                         <page name="pis" string="PIS">
                             <group string="Detalhes do PIS">
                                 <group>
-                                    <field name="pis_cst" attrs="{'required': [('product_type','=', 'product')]}"/>
+                                    <field name="pis_cst"/>
                                     <field name="pis_tipo"/>
                                     <field name="pis_rule_id" />
                                 </group>
@@ -377,7 +373,7 @@
                         <page name="cofins" string="COFINS">
                             <group string="Detalhes do COFINS">
                                 <group>
-                                    <field name="cofins_cst" attrs="{'required': [('product_type','=', 'product')]}"/>
+                                    <field name="cofins_cst"/>
                                     <field name="cofins_tipo"/>
                                     <field name="cofins_rule_id" />
                                 </group>

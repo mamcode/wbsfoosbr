@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# © 2016 Danimar Ribeiro, Trustcode
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
 
@@ -10,10 +11,9 @@ class AccountChartTemplate(models.Model):
 
     @api.multi
     def _load_template(self, company, code_digits=None,
-                       transfer_account_id=None, account_ref=None,
-                       taxes_ref=None):
+                       account_ref=None, taxes_ref=None):
         acc_ref, tax_ref = super(AccountChartTemplate, self)._load_template(
-            company, code_digits, transfer_account_id, account_ref, taxes_ref)
+            company, code_digits, account_ref, taxes_ref)
 
         tax_tmpl_obj = self.env['account.tax.template']
         tax_obj = self.env['account.tax']
@@ -117,10 +117,20 @@ class AccountTax(models.Model):
         if not ipi_tax:
             return []
         vals = self._tax_vals(ipi_tax)
+        base_tax = self.calc_ipi_base(price_base)
+
+        if 'ipi_base_calculo_manual' in self.env.context and\
+                self.env.context['ipi_base_calculo_manual'] > 0:
+            vals['base'] = self.env.context['ipi_base_calculo_manual']
+        else:
+            vals['base'] = base_tax
+        vals['amount'] = ipi_tax._compute_amount(vals['base'], 1.0)
+        return [vals]
+
+    def calc_ipi_base(self, price_base):
         reducao_ipi = 0.0
         if "ipi_reducao_bc" in self.env.context:
             reducao_ipi = self.env.context['ipi_reducao_bc']
-
         base_ipi = price_base
         if "valor_frete" in self.env.context:
             base_ipi += self.env.context["valor_frete"]
@@ -129,20 +139,25 @@ class AccountTax(models.Model):
         if "outras_despesas" in self.env.context:
             base_ipi += self.env.context["outras_despesas"]
 
-        base_tax = base_ipi * (1 - (reducao_ipi / 100.0))
-        vals['amount'] = ipi_tax._compute_amount(base_tax, 1.0)
-        if 'ipi_base_calculo_manual' in self.env.context and\
-                self.env.context['ipi_base_calculo_manual'] > 0:
-            vals['base'] = self.env.context['ipi_base_calculo_manual']
-        else:
-            vals['base'] = base_tax
-        return [vals]
+        return base_ipi * (1 - (reducao_ipi / 100.0))
 
     def _compute_icms(self, price_base, ipi_value):
         icms_tax = self.filtered(lambda x: x.domain == 'icms')
         if not icms_tax:
             return []
         vals = self._tax_vals(icms_tax)
+        base_icms = self.calc_icms_base(price_base, ipi_value)
+        if 'icms_base_calculo_manual' in self.env.context and\
+                self.env.context['icms_base_calculo_manual'] > 0:
+            vals['amount'] = icms_tax._compute_amount(
+                self.env.context['icms_base_calculo_manual'], 1.0)
+            vals['base'] = self.env.context['icms_base_calculo_manual']
+        else:
+            vals['amount'] = icms_tax._compute_amount(base_icms, 1.0)
+            vals['base'] = base_icms
+        return [vals]
+
+    def calc_icms_base(self, price_base, ipi_value):
         base_icms = price_base
         incluir_ipi = False
         reducao_icms = 0.0
@@ -160,17 +175,7 @@ class AccountTax(models.Model):
         if "outras_despesas" in self.env.context:
             base_icms += self.env.context["outras_despesas"]
 
-        base_icms *= 1 - (reducao_icms / 100.0)
-
-        if 'icms_base_calculo_manual' in self.env.context and\
-                self.env.context['icms_base_calculo_manual'] > 0:
-            vals['amount'] = icms_tax._compute_amount(
-                self.env.context['icms_base_calculo_manual'], 1.0)
-            vals['base'] = self.env.context['icms_base_calculo_manual']
-        else:
-            vals['amount'] = icms_tax._compute_amount(base_icms, 1.0)
-            vals['base'] = base_icms
-        return [vals]
+        return base_icms * (1 - (reducao_icms / 100.0))
 
     def _compute_icms_st(self, price_base, ipi_value, icms_value):
         icmsst_tax = self.filtered(lambda x: x.domain == 'icmsst')
@@ -253,7 +258,7 @@ class AccountTax(models.Model):
         if 'icms_aliquota_inter_part' in self.env.context:
             icms_inter_part = self.env.context["icms_aliquota_inter_part"]
         else:
-            icms_inter_part = 80.0
+            icms_inter_part = 100.0
         vals_inter['amount'] = round((interno - interestadual) *
                                      (100 - icms_inter_part) / 100, 2)
         vals_intra['amount'] = round((interno - interestadual) *
@@ -301,7 +306,8 @@ class AccountTax(models.Model):
         if not ii_tax:
             return []
         vals = self._tax_vals(ii_tax)
-        if "ii_base_calculo" in self.env.context:
+        if "ii_base_calculo" in self.env.context and \
+                self.env.context['ii_base_calculo'] > 0:
             price_base = self.env.context["ii_base_calculo"]
         vals['amount'] = ii_tax._compute_amount(price_base, 1.0)
         vals['base'] = price_base
@@ -331,18 +337,16 @@ class AccountTax(models.Model):
             taxes.append(vals)
         return taxes
 
-    @api.multi
-    def compute_all(self, price_unit, currency=None, quantity=1.0,
-                    product=None, partner=None):
+    def _compute_others(self, price_base):
+        others = self.filtered(lambda x: x.domain == 'outros' or not x.domain)
+        if not others:
+            return []
+        vals = self._tax_vals(others)
+        vals['amount'] = others._compute_amount(price_base, 1.0)
+        vals['base'] = price_base
+        return [vals]
 
-        exists_br_tax = len(self.filtered(lambda x: x.domain)) > 0
-        if not exists_br_tax:
-            res = super(AccountTax, self).compute_all(
-                price_unit, currency, quantity, product, partner)
-            res['price_without_tax'] = round(price_unit * quantity, 2)
-            return res
-
-        price_base = price_unit * quantity
+    def sum_taxes(self, price_base):
         ipi = self._compute_ipi(price_base)
         icms = self._compute_icms(
             price_base,
@@ -359,12 +363,28 @@ class AccountTax(models.Model):
         taxes += self._compute_issqn(price_base)
         taxes += self._compute_ii(price_base)
         taxes += self._compute_retention(price_base)
+        taxes += self._compute_others(price_base)
+        return taxes
 
+    @api.multi
+    def compute_all(self, price_unit, currency=None, quantity=1.0,
+                    product=None, partner=None, fisc_pos=None):
+
+        exists_br_tax = len(self.filtered(lambda x: x.domain)) > 0
+        if not exists_br_tax:
+            res = super(AccountTax, self).compute_all(
+                price_unit, currency, quantity, product, partner)
+            res['price_without_tax'] = round(price_unit * quantity, 2)
+            return res
+
+        price_base = price_unit * quantity
+        taxes = self.sum_taxes(price_base)
         total_included = total_excluded = price_base
+
         for tax in taxes:
             tax_id = self.filtered(lambda x: x.id == tax['id'])
             if not tax_id.price_include:
-                total_included += tax['amount']
+                total_included += round(tax['amount'], 2)
 
         return {
             'taxes': sorted(taxes, key=lambda k: k['sequence']),

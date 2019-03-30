@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
+# © 2016 Danimar Ribeiro, Trustcode
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
 {  # pylint: disable=C8101,C8103
     'name': 'Cielo Checkout Payment Acquirer',
     'category': 'Payment Acquirer',
     'summary': 'Payment Acquirer: Cielo Checkout Implementation',
-    'version': '11.0.1.0.0',
+    'version': '12.0.1.0.0',
     'license': 'AGPL-3',
-    'author': 'Udoo',
-    'website': 'http://www.udoo.com.br',
+    'author': 'Trustcode',
     'depends': [
         'account',
         'payment',

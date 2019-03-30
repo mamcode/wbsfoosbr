@@ -18,7 +18,7 @@ _logger = logging.getLogger(__name__)
 try:
     from OpenSSL import crypto
 except ImportError:
-    _logger.debug('Cannot import OpenSSL.crypto', exc_info=True)
+    _logger.error('Cannot import OpenSSL.crypto', exc_info=True)
 
 
 class ResCompany(models.Model):
@@ -90,7 +90,7 @@ class ResCompany(models.Model):
             end = datetime.strptime(
                 cert.get_notAfter().decode(), '%Y%m%d%H%M%SZ')
             subj = cert.get_subject()
-            self.cert_expire_date = end
+            self.cert_expire_date = end.date()
             if datetime.now() < end:
                 self.cert_state = 'valid'
             else:

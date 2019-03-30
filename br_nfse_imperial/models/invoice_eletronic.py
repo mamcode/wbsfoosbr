@@ -11,7 +11,6 @@ from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
 from odoo.exceptions import UserError
-from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DTFT
 from odoo.tools.safe_eval import safe_eval
 
 _logger = logging.getLogger(__name__)
@@ -23,7 +22,7 @@ try:
     from pytrustnfe.nfse.imperial import consulta_notas_protocolo
     from pytrustnfe.nfse.imperial import cancelar_nfse
 except ImportError:
-    _logger.debug('Cannot import pytrustnfe')
+    _logger.error('Cannot import pytrustnfe', exc_info=True)
 
 
 STATE = {'edit': [('readonly', False)]}
@@ -61,8 +60,7 @@ class InvoiceEletronic(models.Model):
         res = super(InvoiceEletronic, self)._prepare_eletronic_invoice_values()
         if self.model == '010':
             tz = pytz.timezone(self.env.user.partner_id.tz) or pytz.utc
-            dt_emissao = datetime.strptime(self.data_emissao, DTFT)
-            dt_emissao = pytz.utc.localize(dt_emissao).astimezone(tz)
+            dt_emissao = pytz.utc.localize(self.data_emissao).astimezone(tz)
 
             partner = self.commercial_partner_id
             tomador = {
@@ -344,8 +342,7 @@ class InvoiceEletronic(models.Model):
         self._create_attachment('canc-ret', self, cancel['received_xml'])
 
     def issqn_due_date(self):
-        date_emition = datetime.strptime(self.data_emissao, DTFT)
-        next_month = date_emition + relativedelta(months=1)
+        next_month = self.data_emissao + relativedelta(months=1)
         due_date = date(next_month.year, next_month.month, 10)
         if due_date.weekday() >= 5:
             while due_date.weekday() != 0:

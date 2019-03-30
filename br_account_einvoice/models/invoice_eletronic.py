@@ -5,6 +5,7 @@
 import re
 import base64
 import copy
+import logging
 from datetime import datetime, timedelta
 import dateutil.relativedelta as relativedelta
 from odoo.exceptions import UserError
@@ -17,14 +18,15 @@ from odoo.addons.br_account.models.cst import CST_PIS_COFINS
 from odoo.addons.br_account.models.cst import ORIGEM_PROD
 from odoo.tools import DEFAULT_SERVER_DATETIME_FORMAT as DATETIME_FORMAT
 
+_logger = logging.getLogger(__name__)
 
-STATE = {'edit': [('readonly', False)], 'error': [('readonly', False)]}
+STATE = {'edit': [('readonly', False)]}
 
 
 class InvoiceEletronic(models.Model):
     _name = 'invoice.eletronic'
-
     _inherit = ['mail.thread']
+    _order = 'id desc'
 
     code = fields.Char(
         u'Código', size=100, required=True, readonly=True, states=STATE)
@@ -51,8 +53,7 @@ class InvoiceEletronic(models.Model):
          ('008', u'NFS-e - Provedor SIMPLISS'),
          ('009', u'NFS-e - Provedor SUSESU'),
          ('010', u'NFS-e Imperial - Petrópolis'),
-         ('012', u'NFS-e - Florianópolis'),
-         ('015', u'NFS-e - Maringá')],
+         ('012', u'NFS-e - Florianópolis')],
         string=u'Modelo', readonly=True, states=STATE)
     serie = fields.Many2one(
         'br_account.document.serie', string=u'Série',
@@ -62,6 +63,11 @@ class InvoiceEletronic(models.Model):
         string=u'Número', readonly=True, states=STATE)
     numero_controle = fields.Integer(
         string=u'Número de Controle', readonly=True, states=STATE)
+    data_agendada = fields.Date(
+        string=u'Data agendada',
+        readonly=True,
+        default=fields.Date.today,
+        states=STATE)
     data_emissao = fields.Datetime(
         string=u'Data emissão', readonly=True, states=STATE)
     data_fatura = fields.Datetime(
@@ -371,14 +377,17 @@ class InvoiceEletronic(models.Model):
             if item.document_id and item.document_id.code != self.model:
                 continue
             template = mako_safe_env.from_string(tools.ustr(item.message))
-            variables = {
-                'user': self.env.user,
-                'ctx': self._context,
-                'invoice': self.invoice_id,
-            }
+            variables = self._get_variables_msg()
             render_result = template.render(variables)
             result += render_result + '\n'
         return result
+
+    def _get_variables_msg(self):
+        return {
+            'user': self.env.user,
+            'ctx': self._context,
+            'invoice': self.invoice_id
+            }
 
     @api.multi
     def validate_invoice(self):
@@ -387,7 +396,7 @@ class InvoiceEletronic(models.Model):
         if len(errors) > 0:
             msg = u"\n".join(
                 [u"Por favor corrija os erros antes de prosseguir"] + errors)
-            self.unlink()
+            self.sudo().unlink()
             raise UserError(msg)
 
     @api.multi
@@ -452,17 +461,21 @@ class InvoiceEletronic(models.Model):
         return ('draft',)
 
     @api.multi
-    def cron_send_nfe(self):
+    def cron_send_nfe(self, limit=50):
         inv_obj = self.env['invoice.eletronic'].with_context({
             'lang': self.env.user.lang, 'tz': self.env.user.tz})
         states = self._get_state_to_send()
-        nfes = inv_obj.search([('state', 'in', states)])
+        nfes = inv_obj.search([('state', 'in', states),
+                               ('data_agendada', '<=', fields.Date.today())],
+                              limit=limit)
         for item in nfes:
             try:
                 item.action_send_eletronic_invoice()
             except Exception as e:
                 item.log_exception(e)
                 item.notify_user()
+                _logger.error(
+                    'Erro no envio de documento eletrônico', exc_info=True)
 
     def _find_attachment_ids_email(self):
         return []
@@ -488,6 +501,10 @@ class InvoiceEletronic(models.Model):
         for nfe in nfe_queue:
             nfe.send_email_nfe()
             nfe.email_sent = True
+
+    @api.multi
+    def copy(self, default=None):
+        raise UserError('Não é possível duplicar uma Nota Fiscal.')
 
 
 class InvoiceEletronicEvent(models.Model):
@@ -527,7 +544,7 @@ class InvoiceEletronicItem(models.Model):
     ncm = fields.Char(u'NCM', size=10, readonly=True, states=STATE)
 
     uom_id = fields.Many2one(
-        'product.uom', string=u'Unidade Medida', readonly=True, states=STATE)
+        'uom.uom', string=u'Unidade Medida', readonly=True, states=STATE)
     quantidade = fields.Float(
         string=u'Quantidade', readonly=True, states=STATE)
     preco_unitario = fields.Monetary(

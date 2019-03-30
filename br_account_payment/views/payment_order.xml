@@ -10,7 +10,6 @@
                 <field name="name" />
                 <field name="type" />
                 <field name="user_id" />
-                <field name="l10n_br_payment_mode_id" />
                 <field name="journal_id" />
                 <field name="amount_total" />
                 <field name="state" />
@@ -28,7 +27,7 @@
               <field name="type" invisible="1" />
               <field name="identifier"/>
               <field name="move_id" />
-              <field name="l10n_br_payment_mode_id" />
+              <field name="payment_mode_id" />
               <field name="state" />
               <field name="name" />
               <field name="emission_date" />
@@ -61,7 +60,7 @@
 
                         <group name='data'>
                             <field name="src_bank_account_id" />
-                            <field name="l10n_br_payment_mode_id" />
+                            <field name="payment_mode_id" />
                         </group>
                     </group>
 
@@ -87,14 +86,14 @@
                 <sheet>
                     <h1 class="mt0">
                         <div>
-                            <label string="Identificador:"/><br/>
+                            <label for="identifier" string="Identificador:"/><br/>
                             <field name="identifier" class="oe_inline"/>
                         </div>
                     </h1>
                     <group name="first">
                         <group name='basic_info'>
                             <field name="partner_id"/>
-                            <field name="l10n_br_payment_mode_id"/>
+                            <field name="payment_mode_id"/>
                             <field name="type"/>
                             <field name="journal_id" />
                             <field name="src_bank_account_id" />

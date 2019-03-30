@@ -8,3 +8,7 @@ from . import account_move_line
 from . import account_invoice
 from . import account_payment
 from . import account_journal
+from . import payment_order
+from . import payment_statement
+from . import res_config_settings
+from . import company

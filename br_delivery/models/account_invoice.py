@@ -8,11 +8,12 @@ class AccountInvoice(models.Model):
     _inherit = 'account.invoice'
 
     incoterm_id = fields.Many2one(
-        'stock.incoterms', 'Tipo do Frete',
+        'account.incoterms', 'Tipo do Frete',
         help="Incoterm which stands for 'International "
         "Commercial terms' implies its a series "
         "of sales terms which are used in the "
         "commercial transaction.")
+    carrier_id = fields.Many2one('delivery.carrier', 'Método de Entrega')
 
     @api.onchange('carrier_id')
     def _onchange_br_delivery_carrier_id(self):

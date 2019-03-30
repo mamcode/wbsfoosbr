@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# © 2016 Danimar Ribeiro, Trustcode
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
 
@@ -125,7 +126,8 @@ class AccountFiscalPosition(models.Model):
         'account.fiscal.position.tax.rule', 'fiscal_position_id',
         string=u"Regras INSS", domain=[('domain', '=', 'inss')])
     fiscal_type = fields.Selection([('saida', 'Saída'),
-                                    ('entrada', 'Entrada')],
+                                    ('entrada', 'Entrada'),
+                                    ('import', 'Entrada Importação')],
                                    string=u"Tipo da posição")
 
     @api.model

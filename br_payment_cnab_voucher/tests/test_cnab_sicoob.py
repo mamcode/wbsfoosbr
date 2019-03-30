@@ -52,10 +52,11 @@ class TestBrCnabSicoob(TestBrCnabPayment):
         conta = self.env['res.partner.bank'].create({
             'acc_number': '45425',  # 5 digitos
             'acc_number_dig': '0',  # 1 digito
-            'l10n_br_number': '4321',  # 4 digitos
-            'l10n_br_number_dig': '0',
+            'bra_number': '4321',  # 4 digitos
+            'bra_number_dig': '0',
             'l10n_br_convenio_pagamento': '123458-8',  # 7 digitos
             'bank_id': sicoob.id,
+            'partner_id': self.main_company.partner_id.id,
         })
         journal = self.env['account.journal'].create({
             'name': 'Banco Sicoob',
@@ -77,7 +78,7 @@ class TestBrCnabSicoob(TestBrCnabPayment):
         self.payment_order = self.env['payment.order'].create({
             'name': 'cnab240_sicoob',
             'user_id': self.user.id,
-            'l10n_br_payment_mode_id': payment_mode.id,
+            'payment_mode_id': payment_mode.id,
             'file_number': 1,
             'company_id': self.main_company.id,
             'type': 'payable',
@@ -95,10 +96,9 @@ class TestBrCnabSicoob(TestBrCnabPayment):
             'type': 'payable',
             'partner_id': self.partner_fisica.id,
             'payment_order_id': self.payment_order.id,
-            'l10n_br_payment_mode_id':
-                self.payment_order.l10n_br_payment_mode_id.id,
-            'src_bank_account_id': self.payment_order.l10n_br_payment_mode_id.
-                journal_id.bank_account_id.id,
+            'payment_mode_id': self.payment_order.payment_mode_id.id,
+            'src_bank_account_id':
+            self.payment_order.payment_mode_id.journal_id.bank_account_id.id,
             'amount_total': 150.00,
             'nosso_numero': nosso_numero.next_by_id(),
             'date_maturity': time.strftime(DATE_FORMAT),
@@ -112,10 +112,9 @@ class TestBrCnabSicoob(TestBrCnabPayment):
             'type': 'payable',
             'partner_id': self.partner_fisica.id,
             'payment_order_id': self.payment_order.id,
-            'l10n_br_payment_mode_id':
-                self.payment_order.l10n_br_payment_mode_id.id,
-            'src_bank_account_id': self.payment_order.l10n_br_payment_mode_id.
-                journal_id.bank_account_id.id,
+            'payment_mode_id': self.payment_order.payment_mode_id.id,
+            'src_bank_account_id':
+            self.payment_order.payment_mode_id.journal_id.bank_account_id.id,
             'amount_total': 120.00,
             'nosso_numero': nosso_numero.next_by_id(),
             'date_maturity': time.strftime(DATE_FORMAT),

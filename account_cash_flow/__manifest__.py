@@ -1,16 +1,20 @@
 # -*- coding: utf-8 -*-
+# © 2016 Danimar Ribeiro, Trustcode
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
 
 {  # pylint: disable=C8101,C8103
     'name': 'Cash Flow Report - Base Account',
     'description': "Cash Flow Report and Graph",
-    'summary': """Base for the cash flow""",
-    'version': '11.0.1.0.0',
+    'summary': """Create the base for the cash flow""",
+    'version': '12.0.1.0.0',
     'category': 'Tools',
-    'author': 'Udoo',
+    'author': 'Trustcode',
     'license': 'AGPL-3',
-    'website': 'http://www.udoo.com.br',
+    'website': 'http://www.trustcode.com.br',
+    'contributors': [
+        'Danimar Ribeiro <danimaribeiro@gmail.com>',
+    ],
     'depends': [
         'account', 'br_account_payment'
     ],

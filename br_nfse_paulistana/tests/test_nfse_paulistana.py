@@ -13,7 +13,7 @@ _logger = logging.getLogger(__name__)
 try:
     from pytrustnfe.xml import sanitize_response
 except ImportError:
-    _logger.debug('Cannot import pytrustnfe')
+    _logger.error('Cannot import pytrustnfe', exc_info=True)
 
 
 class TestNFeBrasil(TransactionCase):
@@ -142,7 +142,6 @@ class TestNFeBrasil(TransactionCase):
         ]
         default_invoice = {
             'name': "Teste Validação",
-            'reference_type': "none",
             'service_document_id': self.env.ref(
                 'br_data_account.fiscal_document_001').id,
             'service_serie_id': self.fpos.service_serie_id.id,

@@ -74,13 +74,13 @@ class WizardChangePayment(models.TransientModel):
         invoice = self.move_line_id.invoice_id
         if order_line and order_line.state == 'draft':
             order_line.write({
-                'l10n_br_payment_mode_id': self.payment_mode_id.id,
+                'payment_mode_id': self.payment_mode_id.id,
                 'linha_digitavel': linha_digitavel,
                 'bank_account_id': self.bank_account_id.id,
                 'date_maturity': self.date_maturity or order_line.date_maturity
             })
             self.move_line_id.write({
-                'l10n_br_payment_mode_id': self.payment_mode_id.id,
+                'payment_mode_id': self.payment_mode_id.id,
                 'date_maturity':
                 self.date_maturity or self.move_line_id.date_maturity,
             })
@@ -99,6 +99,6 @@ class WizardChangePayment(models.TransientModel):
                 self.payment_mode_id, vals)
             if self.date_maturity:
                 self.move_line_id.write({
-                    'l10n_br_payment_mode_id': self.payment_mode_id.id,
+                    'payment_mode_id': self.payment_mode_id.id,
                     'date_maturity': self.date_maturity,
                 })

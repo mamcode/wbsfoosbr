@@ -7,7 +7,7 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
 from odoo import models, fields, api
-from odoo.addons.base.res.res_bank import sanitize_account_number
+from odoo.addons.base.models.res_bank import sanitize_account_number
 
 
 class ResBank(models.Model):
@@ -56,9 +56,18 @@ class ResPartnerBank(models.Model):
     _inherit = 'res.partner.bank'
 
     acc_number = fields.Char('Account Number', size=64, required=False)
-    acc_number_dig = fields.Char(u'Account Number Digit', size=8)
-    bra_number = fields.Char(u'Agency', size=8)
-    bra_number_dig = fields.Char(u'Account Agency Digit', size=8)
+    acc_number_dig = fields.Char('Account Number Digit', size=8)
+    bra_number = fields.Char('Agency', size=8)
+    bra_number_dig = fields.Char('Account Agency Digit', size=8)
+
+    @api.multi
+    def name_get(self):
+        result = []
+        for rec in self:
+            result.append((rec.id, "cc: %s-%s - %s - %s" % (
+                rec.acc_number, rec.acc_number_dig or '',
+                rec.partner_id.name or '', rec.bank_id.name or '')))
+        return result
 
     @api.depends('bank_id', 'acc_number', 'acc_number_dig',
                  'bra_number', 'bra_number_dig')
