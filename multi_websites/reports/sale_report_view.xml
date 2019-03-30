@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+<!-- Copyright (c) 2018-Present Webkul Software Pvt. Ltd. (<https://webkul.com/>) -->
+<!-- See LICENSE file for full copyright and licensing details. -->
+    <record id="inherited_view_order_product_search" model="ir.ui.view">
+        <field name="name">sale.report.search</field>
+        <field name="model">sale.report</field>
+        <field name="inherit_id" ref="sale.view_order_product_search" />
+        <field name="arch" type="xml">
+            <field name="partner_id" position="after">
+                 <field name="wk_website_id"/>
+            </field>
+        </field>
+    </record> 
+</odoo>

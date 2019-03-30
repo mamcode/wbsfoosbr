@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- TOP MENU -->
+	<menuitem id="scan_serial_menu" name="Scan" sequence="30"/>
+	
+    <!-- Sub MENU -->
+	<menuitem id="scan_serial_menu_sub" name="Serials" parent="scan_serial_menu" sequence="1"/>
+	<menuitem id="report_menu_sub" name="Report" parent="scan_serial_menu" sequence="2"/>
+	
+    <!-- Action MENU -->
+	<menuitem id="scan_serial_menu_sub_act" name="Scan Serial" parent="scan_serial_menu_sub" action="action_scan_serials_all"/>
+	<menuitem id="scan_report_sub_action" name="Generate Report" parent="report_menu_sub" action="action_report_new"/>
+	
+</odoo>

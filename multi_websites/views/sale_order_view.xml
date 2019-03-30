@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+<!-- Copyright (c) 2016-Present Webkul Software Pvt. Ltd. (<https://webkul.com/>) -->
+<!-- See LICENSE file for full copyright and licensing details. -->
+    <data>
+		<record id="inherited_view_order_form" model="ir.ui.view">
+            <field name="name">sale.order.form</field>
+            <field name="model">sale.order</field>
+            <field name="inherit_id" ref="sale.view_order_form" />
+            <field name="arch" type="xml">
+                <field name="client_order_ref" position="after">
+                    <field name="wk_website_id"/> 
+                </field>
+            </field>
+        </record>
+
+        <record id="inherited_view_sales_order_filter" model="ir.ui.view">
+            <field name="name">sale.order.list.select</field>
+            <field name="model">sale.order</field>
+            <field name="inherit_id" ref="sale.view_sales_order_filter" />
+            <field name="arch" type="xml">
+               <xpath expr="//group" postion="inside">
+                    <filter string="Website" domain="[]" context="{'group_by':'wk_website_id'}"/>
+               </xpath>
+            </field>
+        </record>
+
+    
+    </data>
+</odoo>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Res Partner Form View  -->
+    <record model="ir.ui.view" id="br_res_partner_form_validate">
+        <field name="name">br_nfe_ext.form</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group//group//field[@name='lang']" position="after">
+				<field name="validate"/>
+			</xpath>
+        </field>
+    </record>
+
+</odoo>

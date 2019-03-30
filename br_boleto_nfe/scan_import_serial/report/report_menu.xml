@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>	
+	<report id="report_serial_standing_list"
+			string="Serial Number Report" 
+			model="wizard.generate.report"
+			report_type="qweb-pdf" 
+			menu = 'False'
+			file = "scan_import_serial.report_scan_wiz_serial"
+			name = "scan_import_serial.report_scan_wiz_serial"/>
+</odoo>

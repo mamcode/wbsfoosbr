@@ -1,0 +1,14 @@
+<nfeResultMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4">
+  <retEnviNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+    <tpAmb>2</tpAmb>
+    <verAplic>SVRS201807191353</verAplic>
+    <cStat>103</cStat>
+    <xMotivo>Lote recebido com sucesso</xMotivo>
+    <cUF>42</cUF>
+    <dhRecbto>2018-07-31T10:53:25-03:00</dhRecbto>
+    <infRec>
+      <nRec>423002181689172</nRec>
+      <tMed>1</tMed>
+    </infRec>
+  </retEnviNFe>
+</nfeResultMsg>

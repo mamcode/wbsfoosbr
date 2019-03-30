@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>	
+	<report id="report_stock_serial_standing_list"
+			string="Stock Count Report" 
+			model="wizard.generate.stock.report"
+			report_type="qweb-pdf" 
+			menu = 'False'
+			file = "stock_report.report_stock_count_serial"
+			name = "stock_report.report_stock_count_serial"/>
+</odoo>

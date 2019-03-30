@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright (c) 2016-Present Webkul Software Pvt. Ltd. (<https://webkul.com/>) -->
+<!-- See LICENSE file for full copyright and licensing details. -->
+<templates>
+
+    <t t-extend="website.DateRangeButtons" >
+        <t t-jquery=".o_date_range_buttons" t-operation="before">
+        <b><span class="pull-left" style="font-size: 20px;margin-top: 2px;margin-right: 10px;margin-left:-150px;color:#7c7bad;">SELECTED WEBSITE</span></b>
+        <select class='wk_multi_website_dashboard pull-left' name='wk_website_list' style="width: 35%; font-size: 20px;margin-top: 3px;color:#7c7bad;">
+            <t t-foreach="widget.dashboards_data.wk_websites" t-as="wk_website">
+                <option t-att-value="wk_website['id']" t-att-selected="wk_website['id'] == wk_website['selected_website']"><t t-esc="wk_website['name']"></t></option>
+            </t>
+        </select>
+        </t>        
+    </t>
+
+</templates>

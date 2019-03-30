@@ -1,0 +1,388 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+<!-- Copyright (c) 2016-Present Webkul Software Pvt. Ltd. (<https://webkul.com/>) -->
+<!-- See LICENSE file for full copyright and licensing details. -->
+    <data>
+    <record model="res.users" id="base.user_root">
+        <field name="groups_id" eval="[ (4, ref('base.group_multi_company'))]"/>
+    </record>
+
+<record id="menu_search" model="ir.ui.view">
+    <field name="name">website.menu.search</field>
+    <field name="model">website.menu</field>
+    <field name="arch" type="xml">
+        <search string="Search Menus">
+            <field name="name"/>
+            <field name="url"/>
+            <field name="website_id"/>
+
+            <group string="Group By">
+                <filter string="Name" domain="[]" context="{'group_by':'name'}"/>
+                <filter string="URL" domain="[]" context="{'group_by':'url'}"/>
+                <filter string="Website"  name="my_websites" domain="[]" context="{'group_by':'website_id'}"/>
+            </group>
+        </search>
+    </field>
+</record>
+
+<record id="view_website_menu_form" model="ir.ui.view">
+  <field name="name">website.menu.tree</field>
+  <field name="model">website.menu</field>
+    <field name="arch" type="xml">
+        <form string="Website Settings">
+          <sheet>
+            <div class="oe_title">
+                <b><label  for="name" string="Name :"/></b>
+                <h1>
+                  <field name="name"
+                    placeholder="Homepage" string ='Name'
+                    /></h1>
+                <div name="domain" groups="base.group_user">
+                    <div>
+                        <label for="url" string="URL :"/>
+
+                        <field name="url" class='oe_inline' placeholder="/"  />
+                    </div>
+                </div>
+            </div>
+
+            <notebook>
+            <page name = 'information' string ='Information'>
+            <group name="other">
+                <group>
+                    <field name="sequence"/>
+                    <field name="parent_id"/>
+                    <field name="website_id"/>
+                    <field name="page_id"/>
+
+
+
+
+                  </group>
+                <group>
+                  <field name="new_window"/>
+                  <field name="parent_left"/>
+                  <field name="parent_right"/>
+                </group>
+            </group>
+          </page>
+          <page name = 'child' string="Child Menus">
+            <div name="child">
+                <group name="child">
+                  <field name="child_id" nolabel='1'/>
+                </group>
+            </div>
+            </page> 
+          </notebook>
+
+            </sheet>
+        </form>
+    </field>
+</record>
+
+<record id="menu_tree" model="ir.ui.view">
+    <field name="name">website.menu.tree</field>
+    <field name="model">website.menu</field>
+    <field name="field_parent">child_id</field>
+    <field name="arch" type="xml">
+        <tree string="Website menu">
+            <field name="sequence" widget="handle"/>
+            <field name="website_id" options="{'no_create': True}"/>
+            <field name="name"/>
+            <field name="url"/>
+            <field name="page_id"/>
+            <field name="new_window"/>
+            <field name="parent_id"/>
+        </tree>
+    </field>
+</record>
+<record id="action_website_menu" model="ir.actions.act_window">
+    <field name="name">Website Menu</field>
+    <field name="res_model">website.menu</field>
+    <field name="view_mode">tree,form</field>
+    <field name="context">{'search_default_my_websites':1}</field>
+  <field name="view_ids" eval="[(5, 0, 0),
+     (0, 0, {'view_mode': 'tree', 'view_id': ref('menu_tree')}),
+     (0, 0, {'view_mode': 'form', 'view_id': ref('view_website_menu_form')})]"/>
+</record>
+
+
+
+ <record id="view_website_kanban" model="ir.ui.view">
+   <field name="name">website.kanban</field>
+    <field name="model">website</field>
+    <field name="type">kanban</field>
+    <field name="arch" type="xml">
+         <kanban class="oe_background_grey o_kanban_dashboard o_salesteam_kanban o_project_kanban "
+        create="0">
+        <field name="id"/>
+       <field name="color"/>
+       <field name="logo"/>
+       <field name="domain"/>
+        <field name="name"/>
+        <field name="carrier_ids"/>
+        <field name="acquirer_ids"/>
+        <field name="website_menu_ids"/>
+        <templates>
+            <t t-name="kanban-box">
+                <div t-attf-class="#{kanban_color(record.color.raw_value)} oe_kanban_global_click_edit " style="padding-left:10px; height:300px" >
+                    <div class="o_project_kanban_manage">
+                        <!-- <a class="o_kanban_manage_toggle_button" href="#" style="margin-top:10px">More <i class="fa fa-caret-down"/></a> -->
+                    </div>
+                    <div class="o_project_kanban_main wk_o_project_kanban_main">
+                         <div class="o_kanban_card_content o_visible oe_kanban_global_click">
+                         <div class="o_kanban_primary_left" >
+                             <div class="o_primary">
+                                 <center><span><t t-field="record.name.value"/></span></center>
+                             </div>
+                             <div style="color:rgb(162, 70, 137)">
+                                 <center>
+                                   <t t-if="record.logo.raw_value">
+                                        <img t-att-src="kanban_image('website', 'logo', record.id.raw_value)" width="100%"  class="oe_kanban_avatar mr4"/>
+                                    </t>
+                                 <h3><t t-esc="record.name.value"/>(<t t-esc="record.domain.value"/>)</h3></center>
+                             </div>
+                         </div>
+
+                        </div>
+                        <div class="o_kanban_card_manage_pane o_invisible"  style="position:absolute; width:294px">
+                          <div class="o_kanban_card_manage_section o_kanban_manage_reports">
+                                <div class="col-xs-6 o_kanban_card_manage_section o_kanban_manage_view">
+                                <div class="o_kanban_card_manage_title">
+                                    <span>Mappings</span>
+                                </div>
+                                <div>
+                                <a name='open_mapping_view'
+                                type='object'
+                                context="{
+                                'website_realted_model':'product.template',
+                                'website_realted_record':'product.template',
+                                }">Products</a>
+                                </div>
+                                <div>
+                                <a
+                                name='open_mapping_view'
+                                type='object'
+                                context="{
+                                'website_realted_model':'sale.order',
+                                'website_realted_record':'sale.order',
+                                }">Orders</a>
+                                </div>
+                                <div>
+                                <a name='open_mapping_view'
+                                type='object'
+                                context="{
+                                'website_realted_model':'website.category.mappings',
+                                'website_realted_record':'website.category.mappings',
+                                }">Categories</a>
+                                </div>
+                                <div>
+                                <a name='open_mapping_view'
+                                type='object'
+                                context="{
+                                'website_realted_model':'channel.partner.mappings',
+                                'website_realted_record':'channel.partner.mappings',
+                                }">Customers</a>
+                                </div>
+                                </div>
+                                <div t-if="widget.editable" class="o_project_kanban_colorpicker" style="padding-top:100px;">
+                                    <ul class="oe_kanban_colorpicker" data-field="color"/>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+
+                    <div class="o_project_kanban_boxes wk_o_project_kanban_boxes" >
+
+                        <a class="o_project_kanban_box"
+                            name='open_related_model_view'
+                            type='object'
+                            context="{
+                            'website_realted_model':'website.menu',
+                            'website_realted_record':'website_menu_ids',
+
+                            }">
+                            <span class="o_label" style="overflow:visible !important">Menu:&#032; </span>
+
+                           <span class="o_value" style="overflow:visible !important"><t t-esc="record.website_menu_ids.value"/></span>
+                        </a>
+                        <a class="o_project_kanban_box" style="background:rgb(223, 169, 65);"
+                            name='open_related_model_view'
+                            type='object'
+                            context="{
+                            'website_realted_model':'payment.acquirer',
+                            'website_realted_record':'acquirer_ids',
+                            }">
+                            <span class="o_label" style="overflow:visible !important"> Payment:&#032;</span>
+
+                            <span class="o_value" style="overflow:visible !important"><t t-esc="record.acquirer_ids.value"/></span>
+                        </a>
+                        <a  class="o_project_kanban_box"
+                            name='open_related_model_view'
+                            type='object'
+                            context="{
+                            'website_realted_model':'delivery.carrier',
+                            'website_realted_record':'carrier_ids',
+
+                            }"
+                        >
+                        <span class="o_label" style="overflow:visible !important"> Delivery:&#032;</span>
+
+                            <span class="o_value"  style="overflow:visible !important"><t t-esc="record.carrier_ids.value"/></span>
+                        </a>
+                        <a  class="o_project_kanban_box"
+                            name='open_website_view'
+                            type='object'
+                        >
+
+                            <span class="o_label" style="overflow:visible !important"> Open Website &#032;&#032;</span>
+                            <span class="o_value"  style="overflow:visible !important">&#032; <i class='fa fa-location-arrow'/></span>
+
+                        </a>
+                    </div>
+                </div>
+            </t>
+        </templates>
+    </kanban>
+    </field>
+</record>
+
+      <record id="view_website_form" model="ir.ui.view">
+          <field name="name">website.form</field>
+          <field name="model">website</field>
+          <field name="arch" type="xml">
+              <form string="Website Settings">
+                <sheet>
+                  <!-- logo_web -->
+                  <field name="logo" widget="image" class="oe_avatar" options="{&quot;preview_image&quot;: &quot;logo&quot;, &quot;size&quot;: [90, 90]}"/>
+                  <div class="oe_title">
+                      <b><label  for="name" string="Name :"/></b>
+                      <h1>
+                        <field name="name"
+                          placeholder="Site1" string='Name'
+                          /></h1>
+                      <div name="domain" groups="base.group_user">
+                          <div>
+                              <label for="domain" string="Domain :"/>
+                              <field name="domain" class='oe_inline' placeholder="site1.example.com"/>
+                          </div>
+                      </div>
+
+                  </div>
+                  <group name="other">
+                      <group>
+                          <field name="company_id" required='1'/>
+                          <field name="website_categ_id" string='Internal Category'/>
+                          <field name="website_multi_theme_id"/>
+                        </group>
+                      <group>
+                        <field name="favicon" string='Favicon'  widget="image"  options="{&quot;preview_image&quot;: &quot;favicon&quot;, &quot;size&quot;: [20, 20]}" class="pull-left oe_avatar"/>
+                        <field name="language_ids" widget="many2many_checkboxes"/>
+                        <field name="default_lang_id" widget="selection"/>
+
+                      </group>
+                  </group>
+
+                  <notebook>
+                    <page name='website_data' string="Delivery/ Payment Methods">
+                        <group>
+                          <group name="carrier">
+                            <field name="carrier_ids" widget="many2many_checkboxes" string='Delivery Methods'
+                                domain= "[('website_published','=',True),('company_id','=',company_id)]"/>
+
+                          </group>
+                          <group name="acquirer">
+                            <field name="acquirer_ids" widget="many2many_checkboxes" string='Payment Methods'
+                                domain="[('website_published','=',True),('company_id','=',company_id)]"/>
+
+                          </group>
+                          </group>
+                      </page>
+
+                    <page name='pricelists' string='Pricelists'>
+                      <group>
+                        <field name="product_pricelist_ids" nolabel='1'/>
+                      </group>
+                    </page>
+
+                  <page name='menus' string='Menus'>
+                  <group>
+                    <field name="website_menu_ids" nolabel='1'>
+                      <tree string="Menu" editable='top'>
+                          <field name="sequence" widget="handle"/>
+                          <field name="website_id" invisible='1'/>
+                          <field name="name" string='Name'/>
+                          <field name="url" required='1'/>
+                          <field name="parent_id"/>
+                          <field name="new_window"/>
+                          <field name="page_id" />
+                      </tree>
+                    </field>
+
+                  </group>
+                </page>
+                <page name='social' string="Social Media">
+                  <div name="social_media">
+                      <group name="social_media">
+                        <field name="google_analytics_key" placeholder="UA-XXXXXXXX-Y"/>
+                          <field name="social_twitter" placeholder="https://twitter.com/Odoo"/>
+                          <field name="social_facebook" placeholder="https://www.facebook.com/odoo"/>
+                          <field name="social_googleplus" placeholder="https://plus.google.com/+Odooapps"/>
+                          <field name="social_linkedin" placeholder="https://www.linkedin.com/company/odoo"/>
+                          <field name="social_youtube" placeholder="https://www.youtube.com/user/OpenERPonline"/>
+                          <field name="social_github" placeholder="https://youraccount.github.io"/>
+                      </group>
+                  </div>
+                  </page>
+                </notebook>
+
+                  </sheet>
+              </form>
+          </field>
+      </record>
+      <record model="ir.ui.view"
+           id="view_website_tree">
+           <field name="name">website.tree</field>
+           <field name="model">website</field>
+            <field name="inherit_id"
+             ref="website.view_website_tree"/>
+             <field name="arch" type="xml">
+                   <field name="default_lang_id" position='after'>
+                     <field name="company_id"/>
+                     <field name="website_categ_id"/>
+                 </field>
+           </field>
+      </record>
+
+      <record id="action_website_list" model="ir.actions.act_window">
+          <field name="name">Websites</field>
+          <field name="type">ir.actions.act_window</field>
+          <field name="res_model">website</field>
+          <field name="view_type">form</field>
+          <field name="view_mode">kanban,tree,form</field>
+          <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'kanban', 'view_id': ref('view_website_kanban')}),
+             (0, 0, {'view_mode': 'tree', 'view_id': ref('view_website_tree')}),
+             (0, 0, {'view_mode': 'form', 'view_id': ref('view_website_form')})]"/>
+
+      </record>
+
+<!-- parent="website.menu_website_global_configuration" -->
+      <menuitem name="Multi Websites"
+          id="multi_menu_root"
+          parent="website.menu_website_configuration"
+          sequence="10"/>
+
+      <menuitem name="Websites"
+          id="menu_website_list"
+          action="action_website_list"
+          parent="multi_menu_root"
+          sequence="1"/>
+
+      <menuitem name="Menus"
+          id="menu_website_menu_list"
+          action="action_website_menu"
+          parent="multi_menu_root"
+          sequence="2"/>
+    </data>
+</odoo>

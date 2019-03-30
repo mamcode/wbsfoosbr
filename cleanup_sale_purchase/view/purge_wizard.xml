@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+	<data>
+		<record id="purge_content_wizard" model="ir.ui.view">
+			<field name="name">Form view for content purge wizard</field>
+			<field name="model">cleanup.wizard</field>
+			<field name="arch" type="xml">
+				<form string="Purge Content" version="10.0">
+					<h1>Purge sale and purchase content .. </h1>
+					<footer>
+						<button type="object" name="purge_all" string="Purge content" />
+						or
+						<button string="Cancel" special="cancel"/>
+					</footer>
+				</form>
+			</field>
+		</record>
+
+		<record id="open_cleanup_content_wizard" model="ir.actions.act_window">
+			<field name="name">Cleanup Content</field>
+			<field name="res_model">cleanup.wizard</field>
+			<field name="view_type">form</field>
+			<field name="view_mode">form</field>
+			<field name="target">new</field>
+		</record>
+	</data>
+</odoo>

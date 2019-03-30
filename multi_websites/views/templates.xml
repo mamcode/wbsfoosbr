@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+<!-- Copyright (c) 2016-Present Webkul Software Pvt. Ltd. (<https://webkul.com/>) -->
+<!-- See LICENSE file for full copyright and licensing details. -->
+    <data>
+
+	<template id="layout_logo_show" inherit_id="website.layout" name="Multi Website Layout" priority="1000">
+	    <xpath expr="//header//a[hasclass('navbar-brand')]" position="replace">
+			<a href="/" class="navbar-brand logo">
+				<span t-field="website.logo" t-options="{'widget': 'image'}"
+				t-att-alt="'Logo of %s' % website.name" t-att-title="website.name"/>
+			</a>
+		</xpath>
+	</template>
+
+	<template id="multi_websites.assets_backend" name="multi_websites popup" inherit_id="web.assets_backend">
+		<xpath expr="." position="inside">
+			<link rel="stylesheet" href="/multi_websites/static/src/less/multi_website_dashboard.less"/>
+		</xpath>
+		 <xpath expr="//script[last()]" position="after">
+			<script type="text/javascript" src="/multi_websites/static/src/js/core_dashboard.js"/>
+    	</xpath>
+	</template>
+
+	<template  id="multi_website_layout" inherit_id="website.layout"  name="Multi Website Layout" active="False">
+        <xpath expr="//t[@t-call-assets='web.assets_frontend'][@t-js='false']" position="attributes">
+            <attribute name="t-call-assets">{theme_view}</attribute>
+        </xpath>
+
+        <xpath expr="//t[@t-call-assets='web.assets_frontend'][@t-css='false']" position="attributes">
+            <attribute name="t-call-assets">{theme_view}</attribute>
+        </xpath>
+    </template>
+
+    <template id="multi_website_assets"  inherit_id="website.assets_frontend" name="Multi Website Assets" primary="True" active="False">
+        <xpath expr="."/>
+    </template>
+
+	<template id="assets_editor" inherit_id="website.assets_editor">
+        <xpath expr=".">
+            <script type="text/javascript" src="/multi_websites/static/src/js/multi_website_theme.js"/>
+        </xpath>
+    </template>
+
+ </data>
+ </odoo>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+	<data>
+		<menuitem id="menu_content_cleanup" name="Sale and Purchase Clean-up" parent="base.menu_custom"/>
+		<menuitem id="menu_purge_wizard" name="Purge Content" parent="menu_content_cleanup" action="open_cleanup_content_wizard"/>
+	</data>
+</odoo>

@@ -1,0 +1,24 @@
+<nfeResultMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeRetAutorizacao4">
+  <retConsReciNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+    <tpAmb>2</tpAmb>
+    <verAplic>SVRS201807240822</verAplic>
+    <nRec>423002181690719</nRec>
+    <cStat>104</cStat>
+    <xMotivo>Lote processado</xMotivo>
+    <cUF>42</cUF>
+    <dhRecbto>2018-07-31T11:28:59-03:00</dhRecbto>
+    <protNFe versao="4.00">
+      <infProt>
+        <tpAmb>2</tpAmb>
+        <verAplic>SVRS201807240822</verAplic>
+        <chNFe>42180780164221000215550010000006081271576374</chNFe>
+        <dhRecbto>2018-07-31T11:28:59-03:00</dhRecbto>
+        <digVal>oIIfUW/HcKFT2tZAaqI17rSBzmU=</digVal>
+        <cStat>694</cStat>
+        <xMotivo>
+          Rejeicao: CFOP de operacao interestadual e idDest diferente de 2
+        </xMotivo>
+      </infProt>
+    </protNFe>
+  </retConsReciNFe>
+</nfeResultMsg>
