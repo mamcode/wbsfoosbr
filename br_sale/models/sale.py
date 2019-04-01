@@ -47,7 +47,7 @@ class SaleOrder(models.Model):
             res['product_serie_id'] = fpos.product_serie_id.id
             res['service_document_id'] = fpos.service_document_id.id
             res['service_serie_id'] = fpos.service_serie_id.id
-            res['fiscal_position_id'] = fpos.id
+            # res['fiscal_position_id'] = fpos.id
             _logger.info("========fiscal_position_id====%s",res)
         return res
 
