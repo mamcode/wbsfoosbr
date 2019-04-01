@@ -5,10 +5,11 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
 from datetime import timedelta
-
+import logging
 from odoo import models, fields, api
 from odoo.addons import decimal_precision as dp
 
+_logger = logging.getLogger(__name__)
 
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
@@ -46,6 +47,8 @@ class SaleOrder(models.Model):
             res['product_serie_id'] = fpos.product_serie_id.id
             res['service_document_id'] = fpos.service_document_id.id
             res['service_serie_id'] = fpos.service_serie_id.id
+            res['fiscal_position_id'] = fpos.id
+            _logger.info("========fiscal_position_id====%s",res)
         return res
 
     total_bruto = fields.Float(
