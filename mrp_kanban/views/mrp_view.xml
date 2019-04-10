@@ -1,0 +1,14 @@
+<odoo>
+    <data>
+        <record id="view_mrp_kanban_stages" model="ir.ui.view">
+            <field name="name">mrp.production.kanban.inherit</field>
+            <field name="model">mrp.production</field>
+            <field name="inherit_id" ref="mrp.mrp_production_kanban_view"/>
+            <field name="arch" type="xml">
+                <xpath expr="//kanban" position="attributes">
+                    <attribute name="default_group_by">state</attribute>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>
