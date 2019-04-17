@@ -1,0 +1,19 @@
+<nfeResultMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeInutilizacao4">
+  <retInutNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+    <infInut>
+      <tpAmb>2</tpAmb>
+      <verAplic>SVRS201806282144</verAplic>
+      <cStat>102</cStat>
+      <xMotivo>Inutilizacao de numero homologado</xMotivo>
+      <cUF>42</cUF>
+      <ano>18</ano>
+      <CNPJ>80164221006215</CNPJ>
+      <mod>55</mod>
+      <serie>1</serie>
+      <nNFIni>600</nNFIni>
+      <nNFFin>601</nNFFin>
+      <dhRecbto>2018-07-31T10:00:38-03:00</dhRecbto>
+      <nProt>342180004306034</nProt>
+    </infInut>
+  </retInutNFe>
+</nfeResultMsg>
