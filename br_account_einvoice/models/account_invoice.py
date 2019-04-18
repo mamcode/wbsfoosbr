@@ -4,10 +4,10 @@
 
 from datetime import datetime
 from random import SystemRandom
+import re
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
-
 
 TYPE2EDOC = {
     'out_invoice': 'saida',        # Customer Invoice
@@ -251,6 +251,9 @@ class AccountInvoice(models.Model):
                 if inv_lines:
                     edoc_vals = self._prepare_edoc_vals(
                         item, inv_lines, item.product_serie_id)
+                    number_int = re.findall(r'\d+', edoc_vals['numero'])
+                    if number_int:
+                        edoc_vals['numero'] = int(number_int[0])
                     eletronic = self.env['invoice.eletronic'].create(edoc_vals)
                     eletronic.validate_invoice()
                     eletronic.action_post_validate()
